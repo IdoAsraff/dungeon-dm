@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "name": "The Sunken Shrine",
+  "levels": ["level-1"],
+  "session": {
+    "focus": { "levelId": "level-1", "roomId": "entry-hall" },
+    "playerLevelId": "level-1"
+  }
+}

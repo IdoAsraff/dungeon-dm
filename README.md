@@ -90,6 +90,12 @@ Polygons are lists of `[x, y]` points in grid squares. Markdown files reference 
 with paths relative to themselves, so they also display correctly in other markdown
 viewers. Empty descriptions have no file.
 
+## Example
+
+`examples/sample-dungeon` is a tiny dungeon: one level with two rooms joined by a
+corridor and two doors. Open it from the start screen with **Open dungeon folder…**.
+The first room is already revealed to the players.
+
 ## Code layout
 
 | Path | What |
