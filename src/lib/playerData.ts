@@ -39,6 +39,8 @@ export const EVENTS = {
   playerViewport: "player:viewport",
   /** DM -> player: { kiosk: boolean } */
   kiosk: "dm:kiosk",
+  /** DM -> player: { id, levelId, x, y } — a ping at grid position (x, y) */
+  ping: "dm:ping",
   /** backend -> all: the player window was hidden / shown */
   playerHidden: "player:hidden",
   playerShown: "player:shown",

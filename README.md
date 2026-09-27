@@ -70,6 +70,14 @@ npm run typecheck
      rooms can fill a wide screen. Focusing and "Whole level" fit the rotated view.
    - **Compass**: shows or hides a compass on the player window (it turns with the view).
    - **Hide handout**: appears while an image is shown to the players (see Notes).
+
+   **Ping:** hold <kbd>⌥ Option</kbd> and click anywhere on the map (the cursor turns into a
+   crosshair). A gold pulse appears at that spot on the player screen, in the preview and
+   on your map, and fades after about two seconds; it works over unrevealed areas too
+   ("the scream comes from *here*").
+
+   **Transitions:** newly revealed rooms fade in on the player screen, blackout fades to
+   and from black, and handouts fade in, crossfade when you show another, and fade out.
 7. **Player preview.** The bottom-left panel in the DM window mirrors exactly what the
    player window shows. Drag its right edge to resize it, or ▁ to minimize it.
 8. **Windows menu.** Show the player window, turn its fullscreen/kiosk mode on or off,

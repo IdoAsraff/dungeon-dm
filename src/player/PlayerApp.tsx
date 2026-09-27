@@ -7,6 +7,7 @@ import type { PlayerViewport } from "../store/ui";
 import type { PlayerRotation } from "../types";
 import { useElementSize, useViewTransform } from "../map/common";
 import { fitKnown, fitRoom, PlayerMapView } from "../map/PlayerMapView";
+import { usePings, type Ping } from "../map/effects";
 
 const IDLE_MS = 2500;
 
@@ -68,6 +69,7 @@ export function PlayerApp() {
       listen<PlayerData>(EVENTS.playerData, (e) => handle(e.payload)),
       listen<{ kiosk: boolean }>(EVENTS.kiosk, (e) => setKiosk(e.payload.kiosk)),
       listen(EVENTS.playerShown, () => setShownCount((n) => n + 1)),
+      listen<Omit<Ping, "at">>(EVENTS.ping, (e) => usePings.getState().add(e.payload)),
     ];
     void emit(EVENTS.playerReady);
     backend

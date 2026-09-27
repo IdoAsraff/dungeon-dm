@@ -5,6 +5,7 @@ import type { PlayerLevel } from "../lib/playerData";
 import type { PlayerRotation } from "../types";
 import { bbox, fitBox, rotateBox, unionBox, type Box, type ViewTransform } from "../lib/geometry";
 import { CELL, FloorTiles, GridImage, GridLines, clipToPolygons } from "./common";
+import { HandoutLayer, PingRings, RevealVeils, useRevealFades } from "./effects";
 
 /** Pixel-space bounding box of all known rooms on the level. */
 export function knownBounds(level: PlayerLevel): Box {
@@ -92,55 +93,52 @@ export function PlayerMapView({
   onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   children?: ReactNode;
 }) {
+  const fades = useRevealFades(level?.id ?? null, level?.rooms.map((r) => r.id) ?? []);
   if (width <= 0 || height <= 0) return null;
   const focused = level?.rooms.find((r) => r.id === focusRoomId) ?? null;
   const knownClip = level ? clipToPolygons(level.rooms.map((r) => r.polygon)) : undefined;
   const big = level ? unionBox([knownBounds(level), { x: 0, y: 0, width: level.width * CELL, height: level.height * CELL }])! : null;
   return (
     <div className="player-map" style={{ width, height }}>
-      {!blackout && (
-        <Stage
-          width={width}
-          height={height}
-          x={view.x}
-          y={view.y}
-          scaleX={view.scale}
-          scaleY={view.scale}
-          draggable={interactive}
-          onWheel={onWheel}
-          onDragMove={onDragMove}
-          listening={interactive}
-        >
-          <Layer listening={false}>
-            {level && (
-              <Group rotation={rotation}>
-                <Group clipFunc={knownClip}>
-                  <Floor level={level} viewScale={view.scale} />
-                  {focused && (
-                    <>
-                      {/* Dim everything, then paint the focused room again on top. */}
-                      <Rect {...big!} fill="#808080" opacity={0.25} globalCompositeOperation="saturation" />
-                      <Rect {...big!} fill="#000" opacity={0.45} />
-                    </>
-                  )}
-                </Group>
+      <Stage
+        width={width}
+        height={height}
+        x={view.x}
+        y={view.y}
+        scaleX={view.scale}
+        scaleY={view.scale}
+        draggable={interactive}
+        onWheel={onWheel}
+        onDragMove={onDragMove}
+        listening={interactive}
+      >
+        <Layer listening={false}>
+          {level && (
+            <Group rotation={rotation}>
+              <Group clipFunc={knownClip}>
+                <Floor level={level} viewScale={view.scale} />
                 {focused && (
-                  <Group clipFunc={clipToPolygons([focused.polygon])}>
-                    <Floor level={level} viewScale={view.scale} />
-                  </Group>
+                  <>
+                    {/* Dim everything, then paint the focused room again on top. */}
+                    <Rect {...big!} fill="#808080" opacity={0.25} globalCompositeOperation="saturation" />
+                    <Rect {...big!} fill="#000" opacity={0.45} />
+                  </>
                 )}
               </Group>
-            )}
-          </Layer>
-        </Stage>
-      )}
-      {!blackout && compass && level && <Compass rotation={rotation} size={compassSize ?? compassSizeFor(width, height)} />}
-      {!blackout && handout && (
-        <div className="player-handout">
-          <img src={handout} alt="" />
-        </div>
-      )}
-      {blackout && <div className="player-blackout">{blackoutLabel}</div>}
+              {focused && (
+                <Group clipFunc={clipToPolygons([focused.polygon])}>
+                  <Floor level={level} viewScale={view.scale} />
+                </Group>
+              )}
+              <RevealVeils rooms={level.rooms} fades={fades} />
+              <PingRings levelId={level.id} viewScale={view.scale} />
+            </Group>
+          )}
+        </Layer>
+      </Stage>
+      {compass && level && <Compass rotation={rotation} size={compassSize ?? compassSizeFor(width, height)} />}
+      <HandoutLayer url={handout ?? null} />
+      <div className={`player-blackout ${blackout ? "on" : ""}`}>{blackoutLabel}</div>
       {children}
     </div>
   );

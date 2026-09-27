@@ -22,6 +22,9 @@ import { assetUrl } from "../lib/backend";
 import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
 import { useUi, type DrawMode } from "../store/ui";
+import { emit } from "@tauri-apps/api/event";
+import { EVENTS } from "../lib/playerData";
+import { PingRings, usePings } from "../map/effects";
 
 const COLORS = {
   room: { r: 96, g: 160, b: 255 },
@@ -59,6 +62,7 @@ export function DmMap({ level }: { level: Level }) {
   const { view, viewRef, setView, animateTo, onWheel, zoomBy } = useViewTransform();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
+  const [altHeld, setAltHeld] = useState(false);
 
   const fitLevel = useCallback(
     (animate: boolean) => {
@@ -142,6 +146,7 @@ export function DmMap({ level }: { level: Level }) {
     const isTyping = (t: EventTarget | null) =>
       t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
     const onDown = (e: KeyboardEvent) => {
+      if (e.key === "Alt") setAltHeld(true);
       if (isTyping(e.target)) return;
       if (e.code === "Space") {
         setSpaceHeld(true);
@@ -161,18 +166,39 @@ export function DmMap({ level }: { level: Level }) {
         setDraft({ ...draft, points: draft.points.slice(0, -1) });
       }
     };
-    const onUp = (e: KeyboardEvent) => e.code === "Space" && setSpaceHeld(false);
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") setSpaceHeld(false);
+      if (e.key === "Alt") setAltHeld(false);
+    };
+    const onBlur = () => setAltHeld(false);
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, [draft, finish]);
 
   // ---- stage mouse handlers (drawing) ---------------------------------------
 
+  /** ⌥-click: a pulse at that spot on the player screen ("the scream comes from here"). */
+  const sendPing = (stage: Konva.Stage | null) => {
+    const p = pointer(stage);
+    if (!p) return;
+    const ping = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, levelId: level.id, x: round3(p.x), y: round3(p.y) };
+    usePings.getState().add(ping);
+    void emit(EVENTS.ping, ping);
+    const playerLevel = useUi.getState().playerViewport?.levelId;
+    if (playerLevel && playerLevel !== level.id) useUi.getState().showToast("The players are looking at another level — they won't see this ping.");
+  };
+
   const onMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!draw && e.evt.altKey && e.evt.button === 0) {
+      sendPing(e.target.getStage());
+      return;
+    }
     if (!draw || spaceHeld || e.evt.button !== 0) return;
     const p = pointer(e.target.getStage());
     if (!p) return;
@@ -265,7 +291,7 @@ export function DmMap({ level }: { level: Level }) {
   };
 
   const onStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (draw) return;
+    if (draw || e.evt.altKey) return;
     if (e.target === e.target.getStage()) {
       setUi({ selection: null, editingShape: false });
     }
@@ -287,7 +313,7 @@ export function DmMap({ level }: { level: Level }) {
       if (useUi.getState().hover?.id === ref.id) setUi({ hover: null });
     },
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (e.evt.button !== 0) return;
+      if (e.evt.button !== 0 || e.evt.altKey) return;
       const cur = useUi.getState().selection;
       const same = cur?.kind === ref.kind && cur.id === ref.id;
       setUi({ selection: ref, editingShape: same ? useUi.getState().editingShape : false });
@@ -298,7 +324,7 @@ export function DmMap({ level }: { level: Level }) {
   const labelSize = 16 / view.scale;
   const strokeW = 2;
 
-  const cursor = draw ? (spaceHeld ? "grab" : "crosshair") : hover ? "pointer" : "grab";
+  const cursor = draw ? (spaceHeld ? "grab" : "crosshair") : altHeld ? "crosshair" : hover ? "pointer" : "grab";
 
   return (
     <div className="map-container" ref={containerRef} style={{ cursor }}>
@@ -447,6 +473,7 @@ export function DmMap({ level }: { level: Level }) {
 
           <Layer>
             {draft && draw && <DraftPreview draft={draft} scale={view.scale} snap={snap} />}
+            <PingRings levelId={level.id} viewScale={view.scale} />
             {editTarget && !draw && (
               <ShapeEditor key={`${editTarget.kind}-${editTarget.id}`} level={level} target={editTarget} scale={view.scale} snap={snap} />
             )}
