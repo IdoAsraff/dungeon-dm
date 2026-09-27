@@ -80,7 +80,18 @@ npm run typecheck
    and from black, and handouts fade in, crossfade when you show another, and fade out.
 7. **Player preview.** The bottom-left panel in the DM window mirrors exactly what the
    player window shows. Drag its right edge to resize it, or ▁ to minimize it.
-8. **Windows menu.** Show the player window, turn its fullscreen/kiosk mode on or off,
+8. **Combat tracker.** The ⚔ Combat panel above the preview (also on the Notes view) is
+   a simple list of combatants, one per line, in turn order. Only you see it.
+   - Add: type a name, <kbd>Tab</kbd>, the HP, <kbd>Enter</kbd>, and the cursor is
+     ready for the next one. New combatants are enemies (red).
+   - The **Enemy / Party** tag on each line switches it between red and green.
+   - HP: click it and type `-7` to subtract, `+5` to add, or a number to set it
+     (`=-3` sets a negative number); <kbd>↑</kbd>/<kbd>↓</kbd> change it by 1. At 0 or
+     below the line stays but is faded and struck through.
+   - Drag a line by its ⋮⋮ grip to reorder; ✕ removes it; click a name to rename it.
+   - **Clear enemies** removes the red lines and keeps the party. ▁ minimizes the panel.
+   - The list is saved with the dungeon.
+9. **Windows menu.** Show the player window, turn its fullscreen/kiosk mode on or off,
    and assign each window to a display. These choices are remembered between sessions.
 
 Every change is saved automatically. <kbd>Ctrl/⌘+Z</kbd> undoes and

@@ -80,6 +80,14 @@ export interface Focus {
   roomId: string;
 }
 
+/** One line of the DM's combat tracker (never shown to players). */
+export interface Combatant {
+  id: string;
+  name: string;
+  hp: number;
+  side: "enemy" | "party";
+}
+
 /** Rotation of the player window's view, in degrees clockwise. */
 export type PlayerRotation = 0 | 90;
 
@@ -92,6 +100,8 @@ export interface Session {
   rotation: PlayerRotation;
   /** Show a compass on the player window. */
   compass: boolean;
+  /** Combat tracker lines, in turn order. */
+  combat: Combatant[];
 }
 
 export const DEFAULT_SESSION: Session = {
@@ -100,6 +110,7 @@ export const DEFAULT_SESSION: Session = {
   blackout: false,
   rotation: 0,
   compass: false,
+  combat: [],
 };
 
 export function roomTitle(room: Pick<Room, "title" | "number">): string {

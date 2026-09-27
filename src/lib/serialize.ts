@@ -85,6 +85,7 @@ export function serializeDungeon(dungeon: Dungeon, session: Session): FileMap {
       blackout: session.blackout,
       rotation: session.rotation,
       compass: session.compass,
+      combat: session.combat,
     },
   };
   files["dungeon.json"] = prettyJson(dj);
@@ -215,6 +216,16 @@ export function parseDungeon(files: FileMap): ParsedDungeon {
     blackout: s.blackout === true,
     rotation: s.rotation === 90 ? 90 : 0,
     compass: s.compass === true,
+    combat: Array.isArray(s.combat)
+      ? s.combat
+          .filter((c) => c && typeof c.name === "string" && Number.isFinite(Number(c.hp)))
+          .map((c, i) => ({
+            id: typeof c.id === "string" && c.id ? c.id : `c${i}`,
+            name: c.name,
+            hp: Math.round(Number(c.hp)),
+            side: c.side === "party" ? ("party" as const) : ("enemy" as const),
+          }))
+      : [],
   };
   const legacyBackground = files["background.md"] !== undefined ? readMd(files, "background.md") : null;
   return { dungeon, session, warnings, legacyBackground };

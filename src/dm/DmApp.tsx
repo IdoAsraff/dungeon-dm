@@ -14,6 +14,7 @@ import { DmMap } from "./DmMap";
 import { SidePanel } from "./SidePanel";
 import { PlayerPreview } from "./PlayerPreview";
 import { Dialogs } from "./Dialogs";
+import { CombatPanel } from "./CombatPanel";
 import { EditorView } from "@codemirror/view";
 import { openSearchPanel } from "@codemirror/search";
 import { NotesView } from "../notes/NotesView";
@@ -212,13 +213,19 @@ export function DmApp() {
               </button>
             </div>
           )}
-          <PlayerPreview />
+          <div className="left-dock">
+            <CombatPanel />
+            <PlayerPreview />
+          </div>
           <PeekPanel />
         </div>
         {level && <SidePanel level={level} />}
       </div>
       <div className="notes-host" style={{ display: mainView === "notes" ? undefined : "none" }}>
         <NotesView />
+        <div className="left-dock">
+          <CombatPanel />
+        </div>
       </div>
       <QuickSwitcher />
       <Dialogs />
