@@ -13,6 +13,7 @@ use tauri::{
 };
 
 const DM_LABEL: &str = "dm";
+const NOTES_DIR: &str = "notes";
 const PLAYER_LABEL: &str = "player";
 
 // ---------------------------------------------------------------------------
@@ -45,7 +46,8 @@ fn collect_files(root: &Path, dir: &Path, out: &mut HashMap<String, String>) -> 
         }
         let path = entry.path();
         if path.is_dir() {
-            if dir == root && name == "assets" {
+            // Images live in assets/; notes are loaded separately (load_notes).
+            if dir == root && (name == "assets" || name == NOTES_DIR) {
                 continue;
             }
             collect_files(root, &path, out)?;
@@ -167,49 +169,203 @@ fn sanitize_file_name(name: &str) -> String {
     }
 }
 
-/// Copies an image into `<dungeon>/assets/` (unless it already lives inside
-/// the dungeon) and returns its dungeon-relative path.
-fn import_asset_into(root: &Path, source: &Path) -> Result<String, String> {
-    let root = root.canonicalize().map_err(|e| format!("cannot open dungeon folder: {e}"))?;
-    let source = source.canonicalize().map_err(|e| format!("cannot open {}: {e}", source.display()))?;
-    if let Ok(rel) = source.strip_prefix(&root) {
-        return Ok(rel
-            .components()
-            .map(|c| c.as_os_str().to_string_lossy().into_owned())
-            .collect::<Vec<_>>()
-            .join("/"));
-    }
-    let assets = root.join("assets");
-    fs::create_dir_all(&assets).map_err(|e| format!("cannot create assets folder: {e}"))?;
-    let file_name = source.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let clean = sanitize_file_name(&file_name);
+fn rel_path(root: &Path, path: &Path) -> Result<String, String> {
+    Ok(path
+        .strip_prefix(root)
+        .map_err(|e| e.to_string())?
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("/"))
+}
+
+/// Writes `bytes` into `<root>/<subdir>/` under a sanitized, unique version
+/// of `file_name` (reusing an identical existing file) and returns the
+/// dungeon-relative path.
+fn store_bytes(root: &Path, subdir: &str, file_name: &str, bytes: &[u8]) -> Result<String, String> {
+    let folder = safe_join(root, subdir)?;
+    fs::create_dir_all(&folder).map_err(|e| format!("cannot create {subdir}: {e}"))?;
+    let clean = sanitize_file_name(file_name);
     let (stem, ext) = match clean.rsplit_once('.') {
         Some((s, e)) => (s.to_string(), format!(".{e}")),
         None => (clean.clone(), String::new()),
     };
-    let bytes = fs::read(&source).map_err(|e| format!("cannot read {}: {e}", source.display()))?;
     let mut n = 1;
     loop {
         let name = if n == 1 { format!("{stem}{ext}") } else { format!("{stem}-{n}{ext}") };
-        let target = assets.join(&name);
+        let target = folder.join(&name);
         if !target.exists() {
-            fs::write(&target, &bytes).map_err(|e| format!("cannot copy image: {e}"))?;
-            return Ok(format!("assets/{name}"));
+            fs::write(&target, bytes).map_err(|e| format!("cannot write {name}: {e}"))?;
+            return Ok(format!("{subdir}/{name}"));
         }
-        // Same image imported before: reuse it.
+        // Same file stored before: reuse it.
         if fs::read(&target).map(|existing| existing == bytes).unwrap_or(false) {
-            return Ok(format!("assets/{name}"));
+            return Ok(format!("{subdir}/{name}"));
         }
         n += 1;
     }
 }
 
+/// Copies an image into `<dungeon>/<subdir>/` (unless it already lives inside
+/// the dungeon) and returns its dungeon-relative path.
+fn import_asset_into(root: &Path, source: &Path, subdir: &str) -> Result<String, String> {
+    let root = root.canonicalize().map_err(|e| format!("cannot open dungeon folder: {e}"))?;
+    let source = source.canonicalize().map_err(|e| format!("cannot open {}: {e}", source.display()))?;
+    if source.starts_with(&root) {
+        return rel_path(&root, &source);
+    }
+    let file_name = source.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let bytes = fs::read(&source).map_err(|e| format!("cannot read {}: {e}", source.display()))?;
+    store_bytes(&root, subdir, &file_name, &bytes)
+}
+
 #[tauri::command]
-fn import_asset(app: AppHandle, dir: String, source: String) -> Result<String, String> {
+fn import_asset(app: AppHandle, dir: String, source: String, subdir: Option<String>) -> Result<String, String> {
     let root = PathBuf::from(&dir);
-    let rel = import_asset_into(&root, Path::new(&source))?;
+    let rel = import_asset_into(&root, Path::new(&source), subdir.as_deref().unwrap_or("assets"))?;
     allow_assets(&app, &root);
     Ok(rel)
+}
+
+/// Stores pasted / dropped image data (base64) and returns its dungeon-relative path.
+#[tauri::command]
+fn save_attachment(app: AppHandle, dir: String, subdir: String, name: String, base64: String) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64.as_bytes())
+        .map_err(|e| format!("invalid image data: {e}"))?;
+    let root = PathBuf::from(&dir);
+    let rel = store_bytes(&root, &subdir, &name, &bytes)?;
+    allow_assets(&app, &root);
+    Ok(rel)
+}
+
+// ---------------------------------------------------------------------------
+// Notes (an Obsidian-like folder of markdown files under <dungeon>/notes)
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+struct NotesListing {
+    /// Note path (relative to notes/, `/`-separated) -> markdown content.
+    files: HashMap<String, String>,
+    /// Every folder, including empty ones.
+    folders: Vec<String>,
+    /// Every other file (images, PDFs, ...).
+    attachments: Vec<String>,
+}
+
+fn walk_notes(notes_root: &Path, dir: &Path, out: &mut NotesListing) -> Result<(), String> {
+    let entries = fs::read_dir(dir).map_err(|e| format!("cannot read {}: {e}", dir.display()))?;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue; // .trash, .obsidian, ...
+        }
+        let path = entry.path();
+        let rel = rel_path(notes_root, &path)?;
+        if path.is_dir() {
+            out.folders.push(rel);
+            walk_notes(notes_root, &path, out)?;
+        } else if path.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("md")) == Some(true) {
+            let content = fs::read_to_string(&path).map_err(|e| format!("cannot read {rel}: {e}"))?;
+            out.files.insert(rel, content);
+        } else {
+            out.attachments.push(rel);
+        }
+    }
+    Ok(())
+}
+
+fn list_notes(root: &Path) -> Result<NotesListing, String> {
+    let notes_root = root.join(NOTES_DIR);
+    let mut out = NotesListing::default();
+    if notes_root.is_dir() {
+        walk_notes(&notes_root, &notes_root, &mut out)?;
+    }
+    out.folders.sort();
+    out.attachments.sort();
+    Ok(out)
+}
+
+#[tauri::command]
+fn load_notes(dir: String) -> Result<NotesListing, String> {
+    list_notes(Path::new(&dir))
+}
+
+fn notes_path(root: &Path, rel: &str) -> Result<PathBuf, String> {
+    safe_join(&root.join(NOTES_DIR), rel)
+}
+
+#[tauri::command]
+fn notes_create_folder(dir: String, path: String) -> Result<(), String> {
+    let target = notes_path(Path::new(&dir), &path)?;
+    if target.exists() {
+        return Err(format!("“{path}” already exists"));
+    }
+    fs::create_dir_all(&target).map_err(|e| format!("cannot create folder: {e}"))
+}
+
+/// Renames or moves a note or folder inside notes/.
+fn move_in_notes(root: &Path, from: &str, to: &str) -> Result<(), String> {
+    let src = notes_path(root, from)?;
+    let dst = notes_path(root, to)?;
+    if !src.exists() {
+        return Err(format!("“{from}” does not exist"));
+    }
+    if dst.exists() {
+        return Err(format!("“{to}” already exists"));
+    }
+    if dst.starts_with(&src) {
+        return Err("cannot move a folder into itself".into());
+    }
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("cannot create folder: {e}"))?;
+    }
+    fs::rename(&src, &dst).map_err(|e| format!("cannot move: {e}"))
+}
+
+#[tauri::command]
+fn notes_move(dir: String, from: String, to: String) -> Result<(), String> {
+    move_in_notes(Path::new(&dir), &from, &to)
+}
+
+/// Moves a note or folder into notes/.trash (like Obsidian) instead of deleting it.
+fn trash_in_notes(root: &Path, path: &str) -> Result<String, String> {
+    let src = notes_path(root, path)?;
+    if !src.exists() {
+        return Err(format!("“{path}” does not exist"));
+    }
+    let trash = root.join(NOTES_DIR).join(".trash");
+    fs::create_dir_all(&trash).map_err(|e| format!("cannot create trash: {e}"))?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let base = src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let mut target = trash.join(format!("{stamp}-{base}"));
+    let mut n = 2;
+    while target.exists() {
+        target = trash.join(format!("{stamp}-{n}-{base}"));
+        n += 1;
+    }
+    fs::rename(&src, &target).map_err(|e| format!("cannot move to trash: {e}"))?;
+    Ok(format!(".trash/{}", target.file_name().unwrap().to_string_lossy()))
+}
+
+#[tauri::command]
+fn notes_trash(dir: String, path: String) -> Result<String, String> {
+    trash_in_notes(Path::new(&dir), &path)
+}
+
+/// Reads a text file inside the dungeon (None if it does not exist).
+#[tauri::command]
+fn read_text(dir: String, path: String) -> Result<Option<String>, String> {
+    let p = safe_join(Path::new(&dir), &path)?;
+    if !p.is_file() {
+        return Ok(None);
+    }
+    fs::read_to_string(&p).map(Some).map_err(|e| format!("cannot read {path}: {e}"))
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +573,12 @@ pub fn run() {
             dungeon_exists,
             save_files,
             import_asset,
+            save_attachment,
+            load_notes,
+            notes_create_folder,
+            notes_move,
+            notes_trash,
+            read_text,
             get_settings,
             update_settings,
             list_monitors,
@@ -479,15 +641,61 @@ mod tests {
         let src = tmp.path().join("Cave Map.png");
         fs::write(&src, b"png-bytes").unwrap();
 
-        assert_eq!(import_asset_into(&root, &src).unwrap(), "assets/Cave-Map.png");
-        assert_eq!(import_asset_into(&root, &src).unwrap(), "assets/Cave-Map.png");
+        assert_eq!(import_asset_into(&root, &src, "assets").unwrap(), "assets/Cave-Map.png");
+        assert_eq!(import_asset_into(&root, &src, "assets").unwrap(), "assets/Cave-Map.png");
         fs::write(&src, b"different").unwrap();
-        assert_eq!(import_asset_into(&root, &src).unwrap(), "assets/Cave-Map-2.png");
+        assert_eq!(import_asset_into(&root, &src, "assets").unwrap(), "assets/Cave-Map-2.png");
         // Files already inside the dungeon are referenced in place.
         assert_eq!(
-            import_asset_into(&root, &root.join("assets/Cave-Map.png")).unwrap(),
+            import_asset_into(&root, &root.join("assets/Cave-Map.png"), "assets").unwrap(),
             "assets/Cave-Map.png"
         );
+    }
+
+    #[test]
+    fn notes_listing_moves_and_trash() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let mut writes = HashMap::new();
+        writes.insert("dungeon.json".to_string(), "{}".to_string());
+        writes.insert("notes/NPCs/Belak.md".to_string(), "# Belak".to_string());
+        writes.insert("notes/Background.md".to_string(), "lore".to_string());
+        apply_changes(root, &writes, &[]).unwrap();
+        fs::create_dir_all(root.join("notes/Empty")).unwrap();
+        fs::create_dir_all(root.join("notes/attachments")).unwrap();
+        fs::write(root.join("notes/attachments/map.png"), b"png").unwrap();
+        fs::create_dir_all(root.join("notes/.obsidian")).unwrap();
+
+        // Notes are not part of the dungeon file set.
+        assert_eq!(read_dungeon_dir(root).unwrap().len(), 1);
+
+        let l = list_notes(root).unwrap();
+        assert_eq!(l.files.len(), 2);
+        assert_eq!(l.files["NPCs/Belak.md"], "# Belak");
+        assert_eq!(l.folders, vec!["Empty", "NPCs", "attachments"]);
+        assert_eq!(l.attachments, vec!["attachments/map.png"]);
+
+        move_in_notes(root, "NPCs/Belak.md", "Villains/Belak the Outcast.md").unwrap();
+        assert!(root.join("notes/Villains/Belak the Outcast.md").is_file());
+        assert!(move_in_notes(root, "Background.md", "Villains/Belak the Outcast.md").is_err(), "no overwrite");
+        assert!(move_in_notes(root, "Villains", "Villains/Sub").is_err(), "no move into itself");
+        assert!(move_in_notes(root, "../dungeon.json", "x.md").is_err(), "no escaping notes/");
+
+        let trashed = trash_in_notes(root, "Villains").unwrap();
+        assert!(trashed.starts_with(".trash/"));
+        assert!(!root.join("notes/Villains").exists());
+        assert!(root.join("notes").join(&trashed).join("Belak the Outcast.md").is_file());
+        assert!(!list_notes(root).unwrap().folders.iter().any(|f| f.contains("trash")));
+    }
+
+    #[test]
+    fn stores_attachments_uniquely() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        assert_eq!(store_bytes(root, "notes/attachments", "Pasted image.png", b"a").unwrap(), "notes/attachments/Pasted-image.png");
+        assert_eq!(store_bytes(root, "notes/attachments", "Pasted image.png", b"a").unwrap(), "notes/attachments/Pasted-image.png");
+        assert_eq!(store_bytes(root, "notes/attachments", "Pasted image.png", b"b").unwrap(), "notes/attachments/Pasted-image-2.png");
+        assert!(store_bytes(root, "../outside", "x.png", b"a").is_err());
     }
 
     #[test]

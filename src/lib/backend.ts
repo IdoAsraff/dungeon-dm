@@ -19,13 +19,31 @@ export interface MonitorInfo {
   primary: boolean;
 }
 
+export interface NotesListing {
+  /** Note path relative to notes/ -> markdown. */
+  files: Record<string, string>;
+  folders: string[];
+  /** Non-markdown files (images, PDFs...) relative to notes/. */
+  attachments: string[];
+}
+
 export const backend = {
   loadDungeon: (dir: string) => invoke<FileMap>("load_dungeon", { dir }),
   dungeonExists: (dir: string) => invoke<boolean>("dungeon_exists", { dir }),
   saveFiles: (dir: string, writes: FileMap, deletes: string[]) =>
     invoke<void>("save_files", { dir, writes, deletes }),
-  /** Copies an image into the dungeon's assets/ folder; returns its root-relative path. */
-  importAsset: (dir: string, source: string) => invoke<string>("import_asset", { dir, source }),
+  /** Copies an image into `<dungeon>/<subdir>` (default assets/); returns its root-relative path. */
+  importAsset: (dir: string, source: string, subdir?: string) =>
+    invoke<string>("import_asset", { dir, source, subdir: subdir ?? null }),
+  /** Stores pasted/dropped image data (base64) under `<dungeon>/<subdir>`; returns its root-relative path. */
+  saveAttachment: (dir: string, subdir: string, name: string, base64: string) =>
+    invoke<string>("save_attachment", { dir, subdir, name, base64 }),
+  loadNotes: (dir: string) => invoke<NotesListing>("load_notes", { dir }),
+  notesCreateFolder: (dir: string, path: string) => invoke<void>("notes_create_folder", { dir, path }),
+  notesMove: (dir: string, from: string, to: string) => invoke<void>("notes_move", { dir, from, to }),
+  /** Moves a note or folder into notes/.trash; returns its path there. */
+  notesTrash: (dir: string, path: string) => invoke<string>("notes_trash", { dir, path }),
+  readText: (dir: string, path: string) => invoke<string | null>("read_text", { dir, path }),
   getSettings: () => invoke<Settings>("get_settings"),
   updateSettings: (patch: Partial<Settings>) => invoke<Settings>("update_settings", { patch }),
   listMonitors: () => invoke<MonitorInfo[]>("list_monitors"),
