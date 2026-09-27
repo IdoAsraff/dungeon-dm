@@ -30,7 +30,8 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
 // ---- pings ------------------------------------------------------------------------
 
-export const PING_MS = 2400;
+export const PING_MS = 2000;
+const PING_COLOR = "#b48cff";
 
 export interface Ping {
   id: string;
@@ -74,24 +75,24 @@ export function PingRings({ levelId, viewScale }: { levelId: string; viewScale: 
         const cy = p.y * CELL;
         return (
           <Group key={p.id}>
-            {[0, 0.18, 0.36].map((delay) => {
-              const k = (t - delay) / (1 - 0.36);
+            {[0, 0.35].map((delay) => {
+              const k = (t - delay) / (1 - 0.35);
               if (k <= 0 || k >= 1) return null;
               return (
                 <Circle
                   key={delay}
                   x={cx}
                   y={cy}
-                  radius={(10 + 90 * easeOut(k)) * px}
-                  stroke="#ffd166"
-                  strokeWidth={4 * px}
-                  opacity={1 - k}
-                  shadowColor="#ffd166"
-                  shadowBlur={12 * px}
+                  radius={(6 + 38 * easeOut(k)) * px}
+                  stroke={PING_COLOR}
+                  strokeWidth={2 * px}
+                  opacity={0.75 * (1 - k)}
+                  shadowColor={PING_COLOR}
+                  shadowBlur={4 * px}
                 />
               );
             })}
-            <Circle x={cx} y={cy} radius={7 * px} fill="#ffd166" opacity={Math.min(1, (1 - t) * 3)} shadowColor="#ffd166" shadowBlur={16 * px} />
+            <Circle x={cx} y={cy} radius={4 * px} fill={PING_COLOR} opacity={0.85 * Math.min(1, (1 - t) * 2.5)} />
           </Group>
         );
       })}

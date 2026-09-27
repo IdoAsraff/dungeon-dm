@@ -72,8 +72,8 @@ npm run typecheck
    - **Hide handout**: appears while an image is shown to the players (see Notes).
 
    **Ping:** hold <kbd>⌥ Option</kbd> and click anywhere on the map (the cursor turns into a
-   crosshair). A gold pulse appears at that spot on the player screen, in the preview and
-   on your map, and fades after about two seconds; it works over unrevealed areas too
+   crosshair). A soft purple pulse appears at that spot on the player screen, in the preview and
+   on your map, and fades after two seconds; it works over unrevealed areas too
    ("the scream comes from *here*").
 
    **Transitions:** newly revealed rooms fade in on the player screen, blackout fades to
