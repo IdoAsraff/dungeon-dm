@@ -26,6 +26,8 @@ export interface PlayerData {
   blackout: boolean;
   rotation: PlayerRotation;
   compass: boolean;
+  /** Image shown full-screen instead of the map. */
+  handout: { url: string } | null;
 }
 
 export const EVENTS = {
@@ -44,7 +46,7 @@ export const EVENTS = {
 
 export function buildPlayerData(
   dungeon: Dungeon | null,
-  session: Session & { viewNonce: number; viewCommand: ViewCommand | null },
+  session: Session & { viewNonce: number; viewCommand: ViewCommand | null; handout?: string | null },
   resolveUrl: (path: string) => string,
 ): PlayerData {
   const levels: PlayerLevel[] = [];
@@ -74,5 +76,6 @@ export function buildPlayerData(
     blackout: session.blackout,
     rotation: session.rotation,
     compass: session.compass,
+    handout: session.handout ? { url: resolveUrl(session.handout) } : null,
   };
 }

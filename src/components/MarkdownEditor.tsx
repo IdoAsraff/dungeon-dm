@@ -1,48 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
-import { Placeholder } from "@tiptap/extensions";
-import { Markdown } from "tiptap-markdown";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { assetUrl, assetUrlToPath, backend } from "../lib/backend";
+import { useEffect, useRef } from "react";
+import { Annotation, EditorState, Transaction, type Extension } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { markdownEditorExtensions } from "../editor/setup";
+import { refreshDecorations } from "../editor/livePreview";
+import { fieldContext } from "../editor/appContext";
+import { getContext, type EditorContext } from "../editor/context";
+import { useNotes } from "../notes/store";
 import { useUi } from "../store/ui";
 
-const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"];
-
-/**
- * Images are stored with dungeon-root-relative paths (`assets/x.png`) but the
- * webview needs asset-protocol URLs to display them. The node keeps the
- * relative path; only the rendered DOM uses the resolved URL.
- */
-const DungeonImage = Image.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      src: {
-        default: null,
-        parseHTML: (el: HTMLElement) => {
-          const src = el.getAttribute("src");
-          const dir = useUi.getState().dungeonDir;
-          return src && dir ? (assetUrlToPath(dir, src) ?? src) : src;
-        },
-        renderHTML: (attrs: { src?: string | null }) => {
-          const dir = useUi.getState().dungeonDir;
-          return { src: attrs.src && dir ? assetUrl(dir, attrs.src) : attrs.src };
-        },
-      },
-    };
-  },
-}).configure({ inline: true });
-
-function getMarkdown(editor: Editor): string {
-  return (editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
-}
-
-function isExternalUrl(href: string) {
-  return /^(https?:|mailto:)/i.test(href);
-}
+/** Marks transactions that sync outside changes into the editor (not user edits). */
+export const External = Annotation.define<boolean>();
 
 interface Props {
   value: string;
@@ -51,155 +18,88 @@ interface Props {
   /** Extra class for sizing (e.g. "tall"). */
   className?: string;
   autoFocus?: boolean;
+  /** Defaults to a dungeon text field opened from the dungeon tab. */
+  context?: EditorContext;
+  extensions?: Extension[];
 }
 
-export function MarkdownEditor({ value, onChange, placeholder, className, autoFocus }: Props) {
-  const lastEmitted = useRef(value);
+/** Obsidian-style live-preview markdown editor (CodeMirror 6). */
+export function MarkdownEditor({ value, onChange, placeholder, className, autoFocus, context, extensions = [] }: Props) {
+  const host = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        underline: false,
-        link: { openOnClick: false, autolink: true, linkOnPaste: true },
-      }),
-      DungeonImage,
-      Placeholder.configure({ placeholder: placeholder ?? "" }),
-      Markdown.configure({ html: false, linkify: true, transformPastedText: true, breaks: false }),
-    ],
-    content: value,
-    // Every paragraph/heading/list item gets dir="auto": Hebrew paragraphs
-    // become right-to-left, English ones stay left-to-right.
-    textDirection: "auto",
-    autofocus: autoFocus ? "end" : false,
-    onUpdate: ({ editor }) => {
-      const md = getMarkdown(editor);
-      if (md === lastEmitted.current) return;
-      lastEmitted.current = md;
-      onChangeRef.current(md);
-    },
-    editorProps: {
-      handleDOMEvents: {
-        click: (_view, event) => {
-          const a = (event.target as HTMLElement).closest("a");
-          const href = a?.getAttribute("href");
-          if (!href) return false;
-          event.preventDefault();
-          if ((event.metaKey || event.ctrlKey) && isExternalUrl(href)) void openUrl(href);
-          return true;
-        },
-      },
-    },
-  });
-
-  // External changes (undo/redo, switching rooms) replace the content.
   useEffect(() => {
-    if (!editor || value === lastEmitted.current) return;
-    lastEmitted.current = value;
-    editor.commands.setContent(value, { emitUpdate: false });
-  }, [editor, value]);
+    const view = new EditorView({
+      parent: host.current!,
+      state: EditorState.create({
+        doc: value,
+        extensions: [
+          markdownEditorExtensions({ context: context ?? fieldContext("dungeon"), placeholder, extra: extensions }),
+          EditorView.updateListener.of((u) => {
+            if (u.docChanged && !u.transactions.some((tr) => tr.annotation(External))) onChangeRef.current(u.state.doc.toString());
+          }),
+        ],
+      }),
+    });
+    viewRef.current = view;
+    if (autoFocus) view.focus();
+    return () => {
+      view.destroy();
+      viewRef.current = null;
+    };
+    // The editor is created once; `key` the component to start over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Outside changes (undo/redo, the same text edited elsewhere) replace the content.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (current === value) return;
+    view.dispatch({
+      changes: { from: 0, to: current.length, insert: value },
+      annotations: [External.of(true), Transaction.addToHistory.of(false)],
+    });
+  }, [value]);
+
+  // Redraw links/images when notes or the dungeon folder change.
+  const indexVersion = useNotes((s) => s.indexVersion);
+  const dir = useUi((s) => s.dungeonDir);
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: refreshDecorations.of(null) });
+  }, [indexVersion, dir]);
 
   return (
     <div className={`md-editor ${className ?? ""}`}>
-      {editor && <Toolbar editor={editor} />}
-      <EditorContent editor={editor} className="md-content" />
+      <div className="md-host" ref={host} />
+      <InsertImageButton view={viewRef} />
     </div>
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
-  const [linkInput, setLinkInput] = useState<string | null>(null);
-  const state = useEditorState({
-    editor,
-    selector: ({ editor: e }) => ({
-      bold: e.isActive("bold"),
-      italic: e.isActive("italic"),
-      strike: e.isActive("strike"),
-      h1: e.isActive("heading", { level: 1 }),
-      h2: e.isActive("heading", { level: 2 }),
-      h3: e.isActive("heading", { level: 3 }),
-      bullet: e.isActive("bulletList"),
-      ordered: e.isActive("orderedList"),
-      quote: e.isActive("blockquote"),
-      link: e.isActive("link"),
-    }),
-  });
-
-  const insertImage = async () => {
-    const dir = useUi.getState().dungeonDir;
-    if (!dir) return;
-    const picked = await openDialog({
-      multiple: false,
-      directory: false,
-      filters: [{ name: "Images", extensions: IMAGE_EXTENSIONS }],
-    });
-    if (typeof picked !== "string") return;
-    try {
-      const rel = await backend.importAsset(dir, picked);
-      const alt = rel.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
-      editor.chain().focus().setImage({ src: rel, alt }).run();
-    } catch (e) {
-      useUi.getState().showToast(`Could not add image: ${e}`);
-    }
-  };
-
-  const applyLink = (url: string) => {
-    const chain = editor.chain().focus().extendMarkRange("link");
-    if (url.trim() === "") chain.unsetLink().run();
-    else chain.setLink({ href: url.trim() }).run();
-    setLinkInput(null);
-  };
-
-  const btn = (label: string, title: string, active: boolean, run: () => void) => (
+/** Picks an image file and inserts it at the cursor (pasting and dropping work too). */
+export function InsertImageButton({ view }: { view: React.RefObject<EditorView | null> }) {
+  return (
     <button
       type="button"
-      className={`md-btn ${active ? "active" : ""}`}
-      title={title}
+      className="md-insert-image"
+      title="Insert an image (you can also paste or drop one)"
       onMouseDown={(e) => e.preventDefault()}
-      onClick={run}
+      onClick={async () => {
+        const v = view.current;
+        if (!v) return;
+        try {
+          const md = await getContext(v.state).pickImage();
+          if (md) v.dispatch(v.state.replaceSelection(md));
+        } catch (err) {
+          useUi.getState().showToast(`Could not add image: ${err}`);
+        }
+      }}
     >
-      {label}
+      🖼
     </button>
-  );
-
-  return (
-    <div className="md-toolbar">
-      {btn("B", "Bold (⌘B)", state.bold, () => editor.chain().focus().toggleBold().run())}
-      {btn("I", "Italic (⌘I)", state.italic, () => editor.chain().focus().toggleItalic().run())}
-      {btn("S", "Strikethrough", state.strike, () => editor.chain().focus().toggleStrike().run())}
-      <span className="md-sep" />
-      {btn("H1", "Heading 1", state.h1, () => editor.chain().focus().toggleHeading({ level: 1 }).run())}
-      {btn("H2", "Heading 2", state.h2, () => editor.chain().focus().toggleHeading({ level: 2 }).run())}
-      {btn("H3", "Heading 3", state.h3, () => editor.chain().focus().toggleHeading({ level: 3 }).run())}
-      <span className="md-sep" />
-      {btn("•", "Bullet list", state.bullet, () => editor.chain().focus().toggleBulletList().run())}
-      {btn("1.", "Numbered list", state.ordered, () => editor.chain().focus().toggleOrderedList().run())}
-      {btn("❝", "Quote", state.quote, () => editor.chain().focus().toggleBlockquote().run())}
-      {btn("—", "Horizontal rule", false, () => editor.chain().focus().setHorizontalRule().run())}
-      <span className="md-sep" />
-      {btn("🔗", "Link (⌘-click a link to open it in the browser)", state.link, () =>
-        setLinkInput((editor.getAttributes("link").href as string | undefined) ?? "https://"),
-      )}
-      {btn("🖼", "Insert image", false, () => void insertImage())}
-      {linkInput !== null && (
-        <form
-          className="md-link-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            applyLink(linkInput);
-          }}
-        >
-          <input
-            autoFocus
-            value={linkInput}
-            onChange={(e) => setLinkInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && setLinkInput(null)}
-            placeholder="https://… (empty removes the link)"
-          />
-          <button type="submit">Set</button>
-        </form>
-      )}
-    </div>
   );
 }

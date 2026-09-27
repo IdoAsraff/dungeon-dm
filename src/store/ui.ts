@@ -15,9 +15,7 @@ export interface DrawMode {
 
 export type Dialog =
   | { type: "addLevel" }
-  | { type: "editLevel"; levelId: string }
-  | { type: "levelDescription"; levelId: string }
-  | { type: "background" };
+  | { type: "editLevel"; levelId: string };
 
 /** The player window's viewport as reported by the player window. */
 export interface PlayerViewport {

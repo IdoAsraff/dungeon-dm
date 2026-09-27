@@ -7,7 +7,6 @@ import { lowestFreeNumber } from "./ids";
 
 const dungeon: Dungeon = {
   name: "Test Crypt",
-  background: "# Lore\n\n![map](assets/overview.png) and [stats](https://example.com/goblin)",
   levels: [
     {
       id: "level-1",
@@ -77,7 +76,6 @@ describe("dungeon serialization", () => {
     const files = serializeDungeon(dungeon, session);
     expect(Object.keys(files).sort()).toEqual(
       [
-        "background.md",
         "dungeon.json",
         "levels/level-1/description.md",
         "levels/level-1/doors/d-1.md",
@@ -97,6 +95,13 @@ describe("dungeon serialization", () => {
     expect(parsed.dungeon).toEqual(dungeon);
     expect(parsed.session).toEqual(session);
     expect(serializeDungeon(parsed.dungeon, parsed.session)).toEqual(files);
+  });
+
+  it("reports a pre-notes background.md for migration", () => {
+    const files = serializeDungeon(dungeon, session);
+    expect(parseDungeon(files).legacyBackground).toBeNull();
+    files["background.md"] = "# Lore\n\n![map](assets/overview.png)\n";
+    expect(parseDungeon(files).legacyBackground).toBe("# Lore\n\n![map](assets/overview.png)");
   });
 
   it("drops a focus that points at an unknown room", () => {

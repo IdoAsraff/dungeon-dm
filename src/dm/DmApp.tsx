@@ -14,6 +14,13 @@ import { DmMap } from "./DmMap";
 import { SidePanel } from "./SidePanel";
 import { PlayerPreview } from "./PlayerPreview";
 import { Dialogs } from "./Dialogs";
+import { EditorView } from "@codemirror/view";
+import { openSearchPanel } from "@codemirror/search";
+import { NotesView } from "../notes/NotesView";
+import { PeekPanel } from "../notes/PeekPanel";
+import { QuickSwitcher } from "../notes/QuickSwitcher";
+import { closeTab, createNote, dirOf, flushNotes, navigateHistory, openDoc, useNotes } from "../notes/store";
+import { openSearch } from "../notes/nav";
 
 /** Keeps the player window in sync with the dungeon and records its viewport. */
 function usePlayerSync() {
@@ -74,6 +81,55 @@ function useUndoKeys() {
   }, []);
 }
 
+/** Notes shortcuts (Obsidian-like). */
+function useNotesKeys() {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      const notes = useNotes.getState();
+      const key = e.key.toLowerCase();
+      if (mod && !e.shiftKey && !e.altKey && key === "o") {
+        e.preventDefault();
+        notes.set({ quickSwitcher: true });
+      } else if (mod && e.shiftKey && key === "f") {
+        e.preventDefault();
+        openSearch();
+      } else if (mod && !e.shiftKey && key === "1") {
+        e.preventDefault();
+        notes.set({ mainView: "dungeon" });
+      } else if (mod && !e.shiftKey && key === "2") {
+        e.preventDefault();
+        notes.set({ mainView: "notes" });
+      } else if (notes.mainView === "notes" && mod && !e.shiftKey && key === "w" && notes.activeTab) {
+        e.preventDefault();
+        closeTab(notes.activeTab);
+      } else if (notes.mainView === "notes" && mod && !e.shiftKey && key === "n") {
+        e.preventDefault();
+        const active = notes.tabs.find((t) => t.id === notes.activeTab)?.doc;
+        void createNote(active?.kind === "note" ? dirOf(active.path) : "").then((path) => openDoc({ kind: "note", path }));
+      } else if (notes.mainView === "notes" && mod && e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        navigateHistory(e.key === "ArrowLeft" ? "back" : "forward");
+      } else if (mod && !e.shiftKey && key === "f") {
+        // ⌘F outside an editor: search in the open note / peek.
+        if ((e.target as HTMLElement).closest?.(".cm-editor")) return;
+        const scope = notes.mainView === "notes" ? ".notes-main" : ".peek-panel";
+        const el = document.querySelector(`${scope} .note-editor .cm-editor`);
+        const view = el ? EditorView.findFromDOM(el as HTMLElement) : null;
+        if (view) {
+          e.preventDefault();
+          view.focus();
+          openSearchPanel(view);
+        }
+      } else if (e.key === "Escape" && notes.peek && !(e.target as HTMLElement).closest?.(".cm-editor, input, textarea")) {
+        notes.set({ peek: null });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}
+
 /** Drops selection/editing state that no longer points at anything (e.g. after undo). */
 function useSelectionGuard() {
   useEffect(
@@ -110,12 +166,15 @@ export function DmApp() {
 
   usePlayerSync();
   useUndoKeys();
+  useNotesKeys();
   useSelectionGuard();
+  const mainView = useNotes((s) => s.mainView);
 
   // Save pending changes before the window closes.
   useEffect(() => {
     const p = getCurrentWindow().onCloseRequested(async () => {
       await flush();
+      await flushNotes();
     });
     return () => void p.then((f) => f());
   }, []);
@@ -140,7 +199,7 @@ export function DmApp() {
   return (
     <div className="dm-root">
       <Toolbar />
-      <div className="dm-main">
+      <div className="dm-main" style={{ display: mainView === "dungeon" ? undefined : "none" }}>
         <div className="dm-map-area">
           {level ? (
             <DmMap key={level.id} level={level} />
@@ -154,9 +213,14 @@ export function DmApp() {
             </div>
           )}
           <PlayerPreview />
+          <PeekPanel />
         </div>
         {level && <SidePanel level={level} />}
       </div>
+      <div className="notes-host" style={{ display: mainView === "notes" ? undefined : "none" }}>
+        <NotesView />
+      </div>
+      <QuickSwitcher />
       <Dialogs />
       <ConfirmHost />
       <Toast />

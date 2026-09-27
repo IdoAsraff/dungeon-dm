@@ -23,13 +23,18 @@ interface SessionState extends Session {
   /** Toggles 0° / 90° and re-fits the player view to what it was showing. */
   toggleRotation: () => void;
   setCompass: (on: boolean) => void;
+  /** Image (dungeon-root-relative path) shown full-screen to the players; not saved. */
+  handout: string | null;
+  showHandout: (path: string | null) => void;
 }
 
 export const useSession = create<SessionState>()((set, get) => ({
   ...DEFAULT_SESSION,
   viewNonce: 0,
   viewCommand: null,
-  setSession: (s) => set({ ...DEFAULT_SESSION, ...s }),
+  handout: null,
+  showHandout: (handout) => set({ handout }),
+  setSession: (s) => set({ ...DEFAULT_SESSION, ...s, handout: null }),
   focusRoom: (focus) =>
     set((st) => ({
       focus,

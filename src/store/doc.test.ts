@@ -8,7 +8,7 @@ const level = () => doc().dungeon!.levels[0];
 
 beforeEach(() => {
   vi.useRealTimers();
-  doc().load({ name: "D", background: "", levels: [] });
+  doc().load({ name: "D", levels: [] });
   doc().addLevel({ name: "L1", width: 10, height: 10, scale: 5, description: "", dmImage: null, playerImage: null });
   useDoc.temporal.getState().clear();
 });
@@ -90,7 +90,7 @@ describe("doc store", () => {
 
   it("loading clears history", () => {
     doc().addRoom(level().id, box(0));
-    doc().load({ name: "Other", background: "", levels: [] });
+    doc().load({ name: "Other", levels: [] });
     expect(useDoc.temporal.getState().pastStates).toHaveLength(0);
     undo();
     expect(doc().dungeon!.name).toBe("Other");

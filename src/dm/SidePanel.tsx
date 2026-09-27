@@ -4,6 +4,7 @@ import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { MarkdownEditor } from "../components/MarkdownEditor";
+import { openDoc } from "../notes/store";
 import { ToolMenu } from "./Toolbar";
 
 function select(ref: EntityRef | null, zoom = false) {
@@ -181,6 +182,12 @@ function RoomPanel({ level, room }: { level: Level; room: Room }) {
           onClick={focusPlayers}
         >
           ◎ Focus player window
+        </button>
+        <button
+          onClick={() => openDoc({ kind: "level", levelId: level.id }, { reveal: { heading: String(room.number) } })}
+          title="Open this room in the level document (Notes)"
+        >
+          📝 Level doc
         </button>
         <ShapeButtons target={ref} />
         <button

@@ -4,8 +4,11 @@ A two-window desktop tool for running a dungeon crawl: a **DM window** with the 
 map, room descriptions and controls, and a **player window** (for a TV or second screen)
 that shows only the rooms the players know about. Everything outside them is blacked out.
 
-Built with Tauri 2 (Rust), React, TypeScript, Konva (map canvas), TipTap (markdown
-editing) and Zustand + zundo (undo/redo).
+The DM window has two views: **Dungeon** (the map) and **Notes**, an Obsidian-like
+folder of linked markdown notes that also contains a generated document per level.
+
+Built with Tauri 2 (Rust), React, TypeScript, Konva (map canvas), CodeMirror 6
+(Obsidian-style live-preview markdown) and Zustand + zundo (undo/redo).
 
 ## Running
 
@@ -30,10 +33,9 @@ npm run typecheck
 
 1. **Pick a dungeon.** On start the DM window asks for a dungeon: open a dungeon folder,
    pick a recent one, or create a new one. The player window opens alongside it.
-2. **Levels.** The toolbar has a levels dropdown (switch levels, 🗑 delete one), **+ Level**
-   (name, grid size, feet per square, description, DM/player background images),
-   **Edit level**, and **Level description**. **Background** opens the dungeon-wide
-   background document.
+2. **Levels.** The levels dropdown in the toolbar switches levels, adds one (name, grid
+   size, feet per square, description, DM/player background images), edits the current
+   one, or deletes one (🗑). **Level doc** opens the level's document in Notes.
 3. **Background images.** Each level can have a DM image and a player image. Use
    **Calibrate…** to line an image up with the grid. You can drag it, set its
    offset and size, enter the image's pixels per square, or fit it to the grid.
@@ -67,6 +69,7 @@ npm run typecheck
    - **Rotate / Rotate back**: turns the player view 90° clockwise and back, so tall
      rooms can fill a wide screen. Focusing and "Whole level" fit the rotated view.
    - **Compass**: shows or hides a compass on the player window (it turns with the view).
+   - **Hide handout**: appears while an image is shown to the players (see Notes).
 7. **Player preview.** The bottom-left panel in the DM window mirrors exactly what the
    player window shows. Drag its right edge to resize it, or ▁ to minimize it.
 8. **Windows menu.** Show the player window, turn its fullscreen/kiosk mode on or off,
@@ -75,10 +78,52 @@ npm run typecheck
 Every change is saved automatically. <kbd>Ctrl/⌘+Z</kbd> undoes and
 <kbd>Ctrl/⌘+Shift+Z</kbd> redoes; inside a text editor these keys undo your typing.
 <kbd>Esc</kbd> cancels drawing, leaves shape editing, or clears the selection.
-Text in right-to-left languages such as Hebrew is laid out right-to-left paragraph by
-paragraph (each paragraph follows its first letter), so mixed Hebrew/English documents
-work. In descriptions, ⌘/Ctrl-click a link to open it in your browser. Use the 🖼 button to
-insert an image; it is copied into the dungeon's `assets/` folder.
+
+### Notes
+
+Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd>⌘2</kbd>).
+
+- **Files.** The sidebar is a folder tree: create notes and folders (＋ buttons,
+  <kbd>⌘N</kbd>, or right-click), rename them (double-click, <kbd>F2</kbd>, or click the
+  note's title), drag them into folders, and delete them (they go to `notes/.trash`).
+  Renaming or moving a note updates every link to it.
+- **Editing** works like Obsidian's live preview: markdown is rendered as you write and
+  the raw syntax only shows where your cursor is. Headings, bold/italic (<kbd>⌘B</kbd>,
+  <kbd>⌘I</kbd>), links (<kbd>⌘K</kbd>), lists, checklists (`- [ ]`), quotes, callouts
+  (`> [!warning] Title`), tables, code, tags (`#npc`) and images. Each line follows its own
+  direction, so Hebrew is right-to-left. Click the chevron next to a heading to fold
+  everything under it; folds are remembered.
+- **Links.** Type `[[` to link another note (`[[Note]]`, `[[Note#Heading]]`,
+  `[[Note|shown text]]`). Clicking a link opens it, ⌘-click opens it in a new tab, and a
+  link to a note that doesn't exist yet creates it. `[[Level name#42]]` links to room 42.
+  Links work in room, door and level descriptions too; on the Dungeon view they open the
+  note in a side panel (**peek**) without leaving the map, and room links select the room.
+  Each note lists its **linked mentions** (backlinks) at the bottom.
+- **Images.** Paste or drop an image, or use the 🖼 button. In notes it is stored in
+  `notes/attachments/` and embedded as `![[image.png]]` (`![[image.png|300]]` sets the
+  width). Hover an image and click **▶ Show to players** to show it full-screen in the
+  player window as a handout.
+- **Tabs.** Open several notes in tabs; ← / → (<kbd>⌘⌥←</kbd> / <kbd>⌘⌥→</kbd>) go back and
+  forward, <kbd>⌘W</kbd> closes a tab. <kbd>⌘O</kbd> opens any note by name.
+- **Level documents.** The locked `levels` folder has one document per level, generated
+  from the map: the level's **Background**, then **Rooms** with each room's
+  **Read-aloud** and **DM notes**. Edit the text of any section (it is the same text as
+  in the room panel); the headings and structure can't be changed. **📍 Map** next to a
+  room shows it on the map; the room panel's **📝 Level doc** jumps the other way.
+- **Search.** <kbd>⌘F</kbd> searches the open note; <kbd>⌘⇧F</kbd> searches everything:
+  notes, level documents, and door/object descriptions. Matching ignores upper/lower
+  case and Hebrew vowel marks.
+
+| Shortcut | Action |
+| --- | --- |
+| <kbd>⌘1</kbd> / <kbd>⌘2</kbd> | Dungeon / Notes |
+| <kbd>⌘O</kbd> | Open a note or level document by name |
+| <kbd>⌘⇧F</kbd> | Search everything |
+| <kbd>⌘F</kbd> | Search in the open note |
+| <kbd>⌘N</kbd> | New note (Notes view) |
+| <kbd>⌘W</kbd> | Close tab |
+| <kbd>⌘⌥←</kbd> / <kbd>⌘⌥→</kbd> | Back / forward |
+| <kbd>⌘B</kbd> / <kbd>⌘I</kbd> / <kbd>⌘K</kbd> | Bold / italic / link |
 
 ## Dungeon format
 
@@ -88,8 +133,11 @@ A dungeon is a plain folder, easy to read and friendly to git:
 my-dungeon/
   dungeon.json                    name, level order, player-window state (focus, blackout,
                                   rotation, compass)
-  background.md                   dungeon background document
   assets/                         images (backgrounds, images in descriptions)
+  notes/                          your notes: markdown files and folders (Obsidian-compatible)
+    attachments/                  images pasted into notes
+    .trash/                       deleted notes
+  .dungeon-dm/workspace.json      open note tabs and folded headings
   levels/<level-id>/
     level.json                    grid size & scale, background images + calibration,
                                   room titles, room / door / object polygons,
@@ -103,7 +151,9 @@ my-dungeon/
 
 Polygons are lists of `[x, y]` points in grid squares. Markdown files reference images
 with paths relative to themselves, so they also display correctly in other markdown
-viewers. Empty descriptions have no file.
+viewers. Empty descriptions have no file. Level documents are not stored as files; they
+are generated from `levels/`. Dungeons from before notes existed had a single
+`background.md`; opening them moves it to `notes/Background.md`.
 
 ## Example
 
@@ -124,3 +174,6 @@ The first room is already revealed to the players.
 | `src/dm/*` | DM window (toolbar, map and drawing, side panel, dialogs, preview) |
 | `src/player/PlayerApp.tsx` | Player window |
 | `src/map/*` | Shared canvas pieces (grid, images, pan/zoom, fog-of-war view) |
+| `src/editor/*` | CodeMirror setup: live preview, folding, links, image paste, contexts |
+| `src/notes/*` | Notes: store, file tree, tabs, level documents, links/backlinks, search, peek |
+| `src/lib/wikiLinks.ts` | `[[link]]` parsing, resolution and rewriting on rename |

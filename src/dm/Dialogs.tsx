@@ -7,6 +7,7 @@ import { useUi } from "../store/ui";
 import { assetUrl, backend } from "../lib/backend";
 import { fitBox, round3 } from "../lib/geometry";
 import { MarkdownEditor } from "../components/MarkdownEditor";
+import { relinkRenamedLevel } from "../notes/links";
 import { Modal, NumberField } from "../components/ui";
 import { CELL, GridLines, useImageElement, useViewTransform } from "../map/common";
 
@@ -22,58 +23,7 @@ export function Dialogs() {
       const level = dungeon.levels.find((l) => l.id === dialog.levelId);
       return level ? <LevelDialog level={level} onClose={close} /> : null;
     }
-    case "levelDescription": {
-      const level = dungeon.levels.find((l) => l.id === dialog.levelId);
-      if (!level) return null;
-      return (
-        <DocDialog
-          title={`${level.name} — level description`}
-          value={level.description}
-          onChange={(md) => useDoc.getState().updateLevel(level.id, { description: md }, `level-desc-${level.id}`)}
-          onClose={close}
-        />
-      );
-    }
-    case "background":
-      return (
-        <DocDialog
-          title={`${dungeon.name} — background`}
-          value={dungeon.background}
-          onChange={(md) => useDoc.getState().setBackground(md)}
-          onClose={close}
-        />
-      );
   }
-}
-
-function DocDialog({
-  title,
-  value,
-  onChange,
-  onClose,
-}: {
-  title: string;
-  value: string;
-  onChange: (md: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal
-      title={title}
-      size="large"
-      onClose={onClose}
-      footer={
-        <>
-          <span className="hint grow">Changes are saved automatically. ⌘/Ctrl-click a link to open it in your browser.</span>
-          <button className="primary" onClick={onClose}>
-            Done
-          </button>
-        </>
-      }
-    >
-      <MarkdownEditor value={value} onChange={onChange} className="tall" autoFocus placeholder="Start writing…" />
-    </Modal>
-  );
 }
 
 // ---- add / edit level --------------------------------------------------------
@@ -109,7 +59,10 @@ function LevelDialog({ level, onClose }: { level?: Level; onClose: () => void })
     const doc = useDoc.getState();
     const fields = { name: name.trim() || "Unnamed level", width, height, scale, dmImage, playerImage };
     if (level) {
+      const before = doc.dungeon!;
       doc.updateLevel(level.id, fields);
+      // Links to the level's document use its name.
+      if (fields.name !== level.name) relinkRenamedLevel(level.id, before);
     } else {
       const id = doc.addLevel({ ...fields, description });
       useUi.getState().set({ currentLevelId: id, selection: null, draw: null });

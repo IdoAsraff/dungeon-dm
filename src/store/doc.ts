@@ -8,6 +8,7 @@ import { temporal } from "zundo";
 import { produce, type Draft } from "immer";
 import type { BackgroundImage, Door, Dungeon, EntityKind, GlobalObject, Level, Polygon, Room } from "../types";
 import { lowestFreeNumber, newId } from "../lib/ids";
+import type { FieldRef } from "../notes/sources";
 
 export interface NewLevelInput {
   name: string;
@@ -28,7 +29,6 @@ export interface DocState {
   /** Replace the whole document (loading / closing). Clears undo history. */
   load: (dungeon: Dungeon | null) => void;
 
-  setBackground: (md: string) => void;
   renameDungeon: (name: string) => void;
 
   addLevel: (input: NewLevelInput) => string;
@@ -47,6 +47,13 @@ export interface DocState {
   deleteShape: (kind: "door" | "object", levelId: string, id: string) => void;
 
   setPolygon: (kind: EntityKind, levelId: string, id: string, polygon: Polygon) => void;
+
+  /**
+   * Rewrites every text field (level backgrounds, room texts, door and object
+   * descriptions) in one undoable step. `fn` returns the same string to leave
+   * a field unchanged.
+   */
+  mapTexts: (fn: (text: string, ref: FieldRef) => string) => void;
 }
 
 // ---- undo coalescing -------------------------------------------------------
@@ -97,7 +104,6 @@ export const useDoc = create<DocState>()(
           resetCoalescing();
         },
 
-        setBackground: (md) => mutate((d) => void (d.background = md), "background"),
         renameDungeon: (name) => mutate((d) => void (d.name = name)),
 
         addLevel: (input) => {
@@ -172,6 +178,30 @@ export const useDoc = create<DocState>()(
             if (kind === "door") level.doors = level.doors.filter((o) => o.id !== id);
             else level.objects = level.objects.filter((o) => o.id !== id);
           }),
+
+        mapTexts: (fn) => {
+          const d0 = get().dungeon;
+          if (!d0) return;
+          // Only mutate (and record undo) when something actually changes.
+          let changed = false;
+          const probe = (text: string, ref: FieldRef) => {
+            const out = fn(text, ref);
+            if (out !== text) changed = true;
+            return out;
+          };
+          const next = produce(d0, (d) => {
+            for (const level of d.levels) {
+              level.description = probe(level.description, { kind: "level-desc", levelId: level.id });
+              for (const r of level.rooms) {
+                r.readAloud = probe(r.readAloud, { kind: "room-read", levelId: level.id, roomId: r.id });
+                r.dmNotes = probe(r.dmNotes, { kind: "room-dm", levelId: level.id, roomId: r.id });
+              }
+              for (const o of level.doors) o.description = probe(o.description, { kind: "door", levelId: level.id, id: o.id });
+              for (const o of level.objects) o.description = probe(o.description, { kind: "object", levelId: level.id, id: o.id });
+            }
+          });
+          if (changed) mutate((d) => void Object.assign(d, next));
+        },
 
         setPolygon: (kind, levelId, id, polygon) =>
           mutate((d) => {

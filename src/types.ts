@@ -71,7 +71,6 @@ export interface Level {
 
 export interface Dungeon {
   name: string;
-  background: string;
   levels: Level[];
 }
 

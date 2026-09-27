@@ -2,7 +2,7 @@
  * Converts a Dungeon to/from the on-disk directory layout:
  *
  *   dungeon.json                         name, level order, session state
- *   background.md                        the dungeon background document
+ *   notes/                               the dungeon's notes (managed separately)
  *   assets/                              images (managed by the backend)
  *   levels/<levelId>/level.json          grid, images, room/door/object geometry
  *   levels/<levelId>/description.md      level description
@@ -88,7 +88,6 @@ export function serializeDungeon(dungeon: Dungeon, session: Session): FileMap {
     },
   };
   files["dungeon.json"] = prettyJson(dj);
-  putMd(files, "background.md", dungeon.background);
   for (const level of dungeon.levels) serializeLevel(level, files);
   return files;
 }
@@ -135,7 +134,18 @@ function num(v: unknown, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-export function parseDungeon(files: FileMap): { dungeon: Dungeon; session: Session; warnings: string[] } {
+export interface ParsedDungeon {
+  dungeon: Dungeon;
+  session: Session;
+  warnings: string[];
+  /**
+   * Content of a pre-notes `background.md` (root-relative links), to be moved
+   * into the notes folder; null if there is none.
+   */
+  legacyBackground: string | null;
+}
+
+export function parseDungeon(files: FileMap): ParsedDungeon {
   const warnings: string[] = [];
   const raw = files["dungeon.json"];
   if (raw === undefined) throw new DungeonFormatError("This folder has no dungeon.json — it is not a dungeon.");
@@ -192,7 +202,6 @@ export function parseDungeon(files: FileMap): { dungeon: Dungeon; session: Sessi
   }
   const dungeon: Dungeon = {
     name: dj.name ?? "Untitled dungeon",
-    background: readMd(files, "background.md"),
     levels,
   };
   const s = dj.session ?? {};
@@ -207,7 +216,8 @@ export function parseDungeon(files: FileMap): { dungeon: Dungeon; session: Sessi
     rotation: s.rotation === 90 ? 90 : 0,
     compass: s.compass === true,
   };
-  return { dungeon, session, warnings };
+  const legacyBackground = files["background.md"] !== undefined ? readMd(files, "background.md") : null;
+  return { dungeon, session, warnings, legacyBackground };
 }
 
 /** Files to write and delete to go from `prev` to `next`. */

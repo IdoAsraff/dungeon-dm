@@ -66,6 +66,7 @@ export function PlayerMapView({
   compass,
   compassSize,
   blackout,
+  handout,
   blackoutLabel,
   interactive,
   onWheel,
@@ -82,6 +83,8 @@ export function PlayerMapView({
   /** Override the compass diameter (the DM preview scales the player's). */
   compassSize?: number;
   blackout: boolean;
+  /** Image shown full-screen over the map. */
+  handout?: string | null;
   /** Text shown on the black screen (used by the DM preview only). */
   blackoutLabel?: string;
   interactive: boolean;
@@ -132,6 +135,11 @@ export function PlayerMapView({
         </Stage>
       )}
       {!blackout && compass && level && <Compass rotation={rotation} size={compassSize ?? compassSizeFor(width, height)} />}
+      {!blackout && handout && (
+        <div className="player-handout">
+          <img src={handout} alt="" />
+        </div>
+      )}
       {blackout && <div className="player-blackout">{blackoutLabel}</div>}
       {children}
     </div>
