@@ -10,7 +10,9 @@ function readDungeonDir(root: string): FileMap {
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
+      if (entry.isDirectory()) {
+        if (entry.name !== "notes") walk(full);
+      }
       else if (/\.(json|md)$/.test(entry.name)) files[path.relative(root, full).split(path.sep).join("/")] = fs.readFileSync(full, "utf8");
     }
   };
@@ -29,5 +31,8 @@ describe("example dungeons", () => {
     expect(level.rooms.every((r) => r.readAloud.length > 0)).toBe(true);
     expect(level.doors.every((d) => d.description.length > 0)).toBe(true);
     expect(session.focus).toEqual({ levelId: "level-1", roomId: "entry-hall" });
+    // Notes replaced the single background document.
+    expect(fs.existsSync(path.join(EXAMPLES, "sample-dungeon/background.md"))).toBe(false);
+    expect(fs.readFileSync(path.join(EXAMPLES, "sample-dungeon/notes/Background.md"), "utf8")).toContain("kuo-toa");
   });
 });
