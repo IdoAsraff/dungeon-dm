@@ -20,7 +20,7 @@ export interface NewLevelInput {
 }
 
 export type LevelPatch = Partial<Omit<Level, "id" | "rooms" | "doors" | "objects">>;
-export type RoomPatch = Partial<Pick<Room, "polygon" | "readAloud" | "dmNotes">>;
+export type RoomPatch = Partial<Pick<Room, "polygon" | "readAloud" | "dmNotes" | "title">>;
 export type ShapePatch = Partial<Pick<Door, "polygon" | "description">>;
 
 export interface DocState {
@@ -121,6 +121,7 @@ export const useDoc = create<DocState>()(
           const room: Room = {
             id: newId("room"),
             number: lowestFreeNumber(level?.rooms.map((r) => r.number) ?? []),
+            title: "",
             polygon,
             readAloud: "",
             dmNotes: "",

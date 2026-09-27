@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from "react-konva";
 import type Konva from "konva";
-import type { EntityKind, EntityRef, Level, Point, Polygon } from "../types";
+import { roomTitle, type EntityKind, type EntityRef, type Level, type Point, type Polygon } from "../types";
 import {
   area,
   circlePolygon,
   fitBox,
+  focusView,
   freeformToPolygon,
   isValidPolygon,
   labelPoint,
@@ -16,7 +17,7 @@ import {
   toFlat,
   translate,
 } from "../lib/geometry";
-import { CELL, GridBackdrop, GridImage, GridLines, useElementSize, useViewTransform } from "../map/common";
+import { CELL, FloorTiles, GridBackdrop, GridImage, GridLines, clipToPolygons, useElementSize, useViewTransform } from "../map/common";
 import { assetUrl } from "../lib/backend";
 import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
@@ -91,8 +92,7 @@ export function DmMap({ level }: { level: Level }) {
       width: (Math.max(...xs) - Math.min(...xs)) * CELL,
       height: (Math.max(...ys) - Math.min(...ys)) * CELL,
     };
-    const t = fitBox(box, size.width, size.height, 0.25);
-    animateTo({ ...t, scale: Math.min(t.scale, Math.max(viewRef.current.scale, 1.2)) });
+    animateTo(focusView(box, size.width, size.height, Math.max(viewRef.current.scale, 1.2)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoomRequest]);
 
@@ -126,8 +126,8 @@ export function DmMap({ level }: { level: Level }) {
       }
       if (purpose.kind === "room") {
         const room = doc.addRoom(level.id, polygon);
-        ui.set({ draw: null, selection: { kind: "room", id: room.id } });
-        ui.showToast(`Room ${room.number} created`);
+        ui.set({ draw: null, selection: { kind: "room", id: room.id }, focusTitleFor: room.id });
+        ui.showToast(`Room ${room.number} created — type a title, or press Enter to keep “Room ${room.number}”`);
       } else {
         const id = doc.addShape(purpose.kind, level.id, polygon);
         ui.set({ draw: null, selection: { kind: purpose.kind, id } });
@@ -322,6 +322,12 @@ export function DmMap({ level }: { level: Level }) {
         >
           <Layer listening={false}>
             <GridBackdrop width={level.width} height={level.height} fill="#23262d" />
+            {!level.dmImage && level.rooms.length > 0 && (
+              // No DM image: flagstones inside rooms, dark rock everywhere else.
+              <Group clipFunc={clipToPolygons(level.rooms.map((r) => r.polygon))}>
+                <FloorTiles box={{ x: 0, y: 0, width: level.width * CELL, height: level.height * CELL }} />
+              </Group>
+            )}
             {level.dmImage && (
               <GridImage
                 url={assetUrl(dir, level.dmImage.path)}
@@ -598,6 +604,44 @@ const TOOL_HINTS: Record<string, string> = {
   polygon: "Click to add corners. Click the first corner, double-click or press Enter to close. Backspace removes the last corner.",
 };
 
+function firstLine(md: string): string {
+  return (
+    md
+      .split("\n")
+      .map((l) => l.replace(/^[#>*\-\s]+/, "").replace(/[*_`]/g, "").trim())
+      .find((l) => l.length > 0) ?? ""
+  );
+}
+
+function hoverLabel(level: Level, ref: EntityRef): string | null {
+  if (ref.kind === "room") {
+    const room = level.rooms.find((r) => r.id === ref.id);
+    return room ? `${room.number} · ${roomTitle(room)}` : null;
+  }
+  const list = ref.kind === "door" ? level.doors : level.objects;
+  const item = list.find((o) => o.id === ref.id);
+  if (!item) return null;
+  const name = ref.kind === "door" ? "Door" : "Object";
+  const text = firstLine(item.description);
+  return text ? `${name} · ${text}` : name;
+}
+
+function SnapSelect() {
+  const snap = useUi((s) => s.snap);
+  return (
+    <select
+      value={snap}
+      title="Snap drawn points to the grid (hold Alt while drawing to ignore)"
+      onChange={(e) => useUi.getState().set({ snap: Number(e.target.value) })}
+    >
+      <option value={1}>Snap: 1 square</option>
+      <option value={0.5}>Snap: ½ square</option>
+      <option value={0.25}>Snap: ¼ square</option>
+      <option value={0}>Snap: off</option>
+    </select>
+  );
+}
+
 function MapHud({
   level,
   draw,
@@ -612,6 +656,8 @@ function MapHud({
   onZoom: (f: number) => void;
 }) {
   const editingShape = useUi((s) => s.editingShape);
+  const hover = useUi((s) => s.hover);
+  const hovered = hover ? hoverLabel(level, hover) : null;
   const what = draw
     ? draw.purpose.type === "reshape"
       ? `Redrawing ${draw.purpose.target.kind}`
@@ -621,15 +667,34 @@ function MapHud({
     <>
       {draw && (
         <div className="map-banner">
-          <b>{what}</b> — {TOOL_HINTS[draw.tool]}{" "}
-          {draft?.tool === "polygon" && draft.points.length > 0 && <span>({draft.points.length} corners) </span>}
-          <span className="muted">Hold Alt to disable snapping · Space+drag to pan · Esc to cancel</span>
+          <div>
+            <b>{what}</b> — {TOOL_HINTS[draw.tool]}{" "}
+            {draft?.tool === "polygon" && draft.points.length > 0 && <span>({draft.points.length} corners) </span>}
+            <span className="muted">Hold Alt to disable snapping · Space+drag to pan · Esc to cancel</span>
+          </div>
+          <div className="map-banner-actions">
+            <SnapSelect />
+            <button className="warn" onClick={() => useUi.getState().set({ draw: null })}>
+              Cancel (Esc)
+            </button>
+          </div>
         </div>
       )}
       {!draw && editingShape && (
         <div className="map-banner">
-          <b>Editing shape</b> — drag corners to move them, click a midpoint to add a corner, double-click a corner to
-          remove it, drag the shape to move it. <span className="muted">Alt disables snapping · Esc to finish</span>
+          <div>
+            <b>Editing shape</b> — drag corners to move them, click a midpoint to add a corner, double-click a corner to
+            remove it, drag the shape to move it. <span className="muted">Alt disables snapping · Esc to finish</span>
+          </div>
+          <div className="map-banner-actions">
+            <SnapSelect />
+            <button onClick={() => useUi.getState().set({ editingShape: false })}>Done</button>
+          </div>
+        </div>
+      )}
+      {hovered && !draw && (
+        <div className="map-hover" dir="auto">
+          {hovered}
         </div>
       )}
       <div className="map-zoom">

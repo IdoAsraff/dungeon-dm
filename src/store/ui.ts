@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { EntityKind, EntityRef } from "../types";
+import type { EntityKind, EntityRef, PlayerRotation } from "../types";
 
 export type DrawTool = "box" | "circle" | "freeform" | "polygon";
 
@@ -25,6 +25,7 @@ export interface PlayerViewport {
   x: number;
   y: number;
   scale: number;
+  rotation: PlayerRotation;
   width: number;
   height: number;
 }
@@ -45,6 +46,8 @@ interface UiState {
   saveError: string | null;
   /** Ask the DM map to zoom to an entity (nonce makes repeated requests distinct). */
   zoomRequest: { target: EntityRef; nonce: number } | null;
+  /** Room whose title field should grab focus (set right after drawing a new room). */
+  focusTitleFor: string | null;
 
   set: (patch: Partial<Omit<UiState, "set" | "showToast">>) => void;
   showToast: (text: string) => void;
@@ -64,6 +67,7 @@ export const useUi = create<UiState>()((set) => ({
   saveStatus: "saved",
   saveError: null,
   zoomRequest: null,
+  focusTitleFor: null,
   set: (patch) => set(patch),
   showToast: (text) => set({ toast: { id: Date.now(), text } }),
 }));

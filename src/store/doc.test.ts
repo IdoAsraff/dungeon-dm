@@ -96,3 +96,33 @@ describe("doc store", () => {
     expect(doc().dungeon!.name).toBe("Other");
   });
 });
+
+describe("session view commands", () => {
+  it("focus, show whole level and rotation issue distinct camera commands", async () => {
+    const { useSession } = await import("./session");
+    const s = () => useSession.getState();
+    s().setSession({ focus: null, playerLevelId: "L", blackout: false, rotation: 0, compass: false });
+    const n0 = s().viewNonce;
+    s().focusRoom({ levelId: "L", roomId: "r1" });
+    expect(s().viewCommand).toEqual({ kind: "room", levelId: "L", roomId: "r1" });
+    s().toggleRotation();
+    expect(s().rotation).toBe(90);
+    expect(s().viewCommand).toEqual({ kind: "room", levelId: "L", roomId: "r1" }); // re-fit to the same room
+    s().showWholeLevel("L");
+    expect(s().focus).toBeNull();
+    expect(s().viewCommand).toEqual({ kind: "level", levelId: "L" });
+    s().toggleRotation();
+    expect(s().rotation).toBe(0);
+    expect(s().viewCommand).toEqual({ kind: "level", levelId: "L" });
+    expect(s().viewNonce).toBe(n0 + 4);
+  });
+
+  it("room titles are undoable edits", () => {
+    const a = doc().addRoom(level().id, box(0));
+    expect(a.title).toBe("");
+    doc().updateRoom(level().id, a.id, { title: "Crypt" }, `title-${a.id}`);
+    expect(level().rooms[0].title).toBe("Crypt");
+    undo();
+    expect(level().rooms[0].title).toBe("");
+  });
+});

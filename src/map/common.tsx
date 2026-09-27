@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Group, Image as KImage, Rect, Shape } from "react-konva";
 import type Konva from "konva";
-import type { ImageRect } from "../types";
-import type { ViewTransform } from "../lib/geometry";
+import type { ImageRect, Polygon } from "../types";
+import { normalizeWinding, type Box, type ViewTransform } from "../lib/geometry";
+import { floorPattern } from "./floorTile";
 
-/** Pixels per grid square in world (stage) coordinates at zoom 1. */
-export const CELL = 64;
+import { CELL } from "./constants";
+
+export { CELL };
 
 export const MIN_SCALE = 0.05;
 export const MAX_SCALE = 8;
@@ -104,6 +106,38 @@ export function GridLines({
       }}
     />
   );
+}
+
+/** Flagstone floor covering `box` (world px), aligned to the grid. */
+export function FloorTiles({ box }: { box: Box }) {
+  const x0 = Math.floor(box.x / CELL) * CELL;
+  const y0 = Math.floor(box.y / CELL) * CELL;
+  const x1 = Math.ceil((box.x + box.width) / CELL) * CELL;
+  const y1 = Math.ceil((box.y + box.height) / CELL) * CELL;
+  return (
+    <Rect
+      x={x0}
+      y={y0}
+      width={x1 - x0}
+      height={y1 - y0}
+      fillPatternImage={floorPattern() as unknown as HTMLImageElement}
+      fillPatternRepeat="repeat"
+      listening={false}
+      perfectDrawEnabled={false}
+    />
+  );
+}
+
+/** Konva clipFunc drawing the union of the given polygons (grid units). */
+export function clipToPolygons(polys: Polygon[]) {
+  const normalized = polys.map(normalizeWinding);
+  return (ctx: Konva.Context) => {
+    ctx.beginPath();
+    for (const poly of normalized) {
+      poly.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x * CELL, p.y * CELL) : ctx.lineTo(p.x * CELL, p.y * CELL)));
+      ctx.closePath();
+    }
+  };
 }
 
 export function GridBackdrop({ width, height, fill }: { width: number; height: number; fill: string }) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Dungeon, Session } from "../types";
+import { DEFAULT_SESSION, roomTitle, type Dungeon, type Session } from "../types";
 import { diffFiles, parseDungeon, prettyJson, serializeDungeon, DungeonFormatError } from "./serialize";
 import { normalizePath, toFileRelative, toRootRelative } from "./markdownPaths";
 import { buildPlayerData } from "./playerData";
@@ -22,6 +22,7 @@ const dungeon: Dungeon = {
         {
           id: "r-a",
           number: 1,
+          title: "Entry Hall",
           polygon: [
             { x: 0, y: 0 },
             { x: 4, y: 0 },
@@ -35,6 +36,7 @@ const dungeon: Dungeon = {
         {
           id: "r-b",
           number: 2,
+          title: "",
           polygon: [
             { x: 6, y: 0 },
             { x: 9.5, y: 0 },
@@ -50,7 +52,7 @@ const dungeon: Dungeon = {
     },
   ],
 };
-const session: Session = { focus: { levelId: "level-1", roomId: "r-a" }, playerLevelId: "level-1" };
+const session: Session = { ...DEFAULT_SESSION, focus: { levelId: "level-1", roomId: "r-a" }, playerLevelId: "level-1", rotation: 90, compass: true };
 
 describe("markdown path rewriting", () => {
   it("normalizes paths", () => {
@@ -98,7 +100,7 @@ describe("dungeon serialization", () => {
   });
 
   it("drops a focus that points at an unknown room", () => {
-    const files = serializeDungeon(dungeon, { focus: { levelId: "level-1", roomId: "r-b" }, playerLevelId: null });
+    const files = serializeDungeon(dungeon, { ...DEFAULT_SESSION, focus: { levelId: "level-1", roomId: "r-b" } });
     expect(parseDungeon(files).session.focus).toBeNull();
   });
 
@@ -122,6 +124,23 @@ describe("dungeon serialization", () => {
     expect(Object.keys(writes).sort()).toEqual(["levels/level-1/level.json", "levels/level-1/rooms/7.dm.md"]);
   });
 
+  it("reads dungeons saved before titles and player-view settings existed", () => {
+    const files = serializeDungeon(dungeon, session);
+    const lj = JSON.parse(files["levels/level-1/level.json"]);
+    for (const r of lj.rooms) delete r.title;
+    files["levels/level-1/level.json"] = JSON.stringify(lj);
+    files["dungeon.json"] = JSON.stringify({ format: 1, name: "Old", levels: ["level-1"], session: { focus: null } });
+    const parsed = parseDungeon(files);
+    expect(parsed.dungeon.levels[0].rooms.map((r) => r.title)).toEqual(["", ""]);
+    expect(parsed.session).toEqual(DEFAULT_SESSION);
+  });
+
+  it("defaults empty room titles to the room number", () => {
+    expect(roomTitle({ title: "", number: 7 })).toBe("Room 7");
+    expect(roomTitle({ title: "  ", number: 7 })).toBe("Room 7");
+    expect(roomTitle({ title: "הגן המרכזי", number: 42 })).toBe("הגן המרכזי");
+  });
+
   it("pretty-prints JSON with compact points", () => {
     expect(prettyJson({ p: [[1, 2], [3.5, -4]] })).toBe('{\n  "p": [[1, 2], [3.5, -4]]\n}\n');
   });
@@ -129,14 +148,18 @@ describe("dungeon serialization", () => {
 
 describe("player data", () => {
   it("includes only known rooms, without secrets", () => {
-    const data = buildPlayerData(dungeon, { ...session, focusNonce: 3 }, (p) => `url:${p}`);
+    const data = buildPlayerData(dungeon, { ...session, viewNonce: 3, viewCommand: { kind: "level", levelId: "level-1" } }, (p) => `url:${p}`);
     expect(data.levels).toHaveLength(1);
     expect(data.levels[0].rooms.map((r) => r.id)).toEqual(["r-a"]);
     expect(JSON.stringify(data)).not.toContain("ghoul");
     expect(JSON.stringify(data)).not.toContain("Locked");
     expect(JSON.stringify(data)).not.toContain("l1.png"); // DM image never sent
     expect(data.focus).toEqual(session.focus);
-    expect(data.focusNonce).toBe(3);
+    expect(data.viewNonce).toBe(3);
+    expect(data.viewCommand).toEqual({ kind: "level", levelId: "level-1" });
+    expect(data.rotation).toBe(90);
+    expect(data.compass).toBe(true);
+    expect(JSON.stringify(data)).not.toContain("Entry Hall"); // titles are DM-only
   });
 
   it("omits levels without known rooms", () => {
@@ -144,7 +167,7 @@ describe("player data", () => {
       ...dungeon,
       levels: [{ ...dungeon.levels[0], rooms: dungeon.levels[0].rooms.map((r) => ({ ...r, playerKnown: false })) }],
     };
-    const data = buildPlayerData(hidden, { ...session, focusNonce: 0 }, (p) => p);
+    const data = buildPlayerData(hidden, { ...session, viewNonce: 0, viewCommand: null }, (p) => p);
     expect(data.levels).toEqual([]);
     expect(data.focus).toBeNull();
   });

@@ -6,7 +6,7 @@
 import { backend } from "../lib/backend";
 import { diffFiles, serializeDungeon, type FileMap } from "../lib/serialize";
 import { useDoc } from "./doc";
-import { useSession } from "./session";
+import { persistedSession, useSession } from "./session";
 import { useUi } from "./ui";
 
 const DEBOUNCE_MS = 400;
@@ -20,8 +20,7 @@ let unsubscribers: (() => void)[] = [];
 function currentFiles(): FileMap | null {
   const dungeon = useDoc.getState().dungeon;
   if (!dungeon) return null;
-  const { focus, playerLevelId } = useSession.getState();
-  return serializeDungeon(dungeon, { focus, playerLevelId });
+  return serializeDungeon(dungeon, persistedSession(useSession.getState()));
 }
 
 function schedule() {
@@ -71,7 +70,9 @@ export function startAutosave(dungeonDir: string, baseline: FileMap) {
       if (s.dungeon !== prev.dungeon) schedule();
     }),
     useSession.subscribe((s, prev) => {
-      if (s.focus !== prev.focus || s.playerLevelId !== prev.playerLevelId) schedule();
+      const a = persistedSession(s);
+      const b = persistedSession(prev);
+      if ((Object.keys(a) as (keyof typeof a)[]).some((k) => a[k] !== b[k])) schedule();
     }),
   ];
 }

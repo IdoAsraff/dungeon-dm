@@ -227,7 +227,7 @@ input[type="checkbox"] {
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   padding: 5px 8px;
   font-size: 13px;
   background: var(--bg-2);
@@ -241,6 +241,11 @@ input[type="checkbox"] {
 }
 .toolbar select {
   padding: 3px 4px;
+}
+.toolbar > .dropdown:first-child .tb-btn {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tb-sep {
   width: 1px;
@@ -294,8 +299,15 @@ input[type="checkbox"] {
   border-radius: var(--radius);
   padding: 7px 12px;
   font-size: 13px;
-  pointer-events: none;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.map-banner-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .map-banner .muted {
   display: block;
@@ -610,9 +622,9 @@ input[type="checkbox"] {
   color: var(--text);
 }
 .md-content blockquote {
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   margin: 0.5em 0;
-  padding-left: 10px;
+  padding-inline-start: 10px;
   color: #cfc6b2;
 }
 .md-content a {
@@ -633,7 +645,11 @@ input[type="checkbox"] {
 }
 .md-content ul,
 .md-content ol {
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
+}
+/* Direction comes from each block's own text (dir="auto"); align to its start. */
+.md-content [dir] {
+  text-align: start;
 }
 .md-content hr {
   border: none;
@@ -642,7 +658,7 @@ input[type="checkbox"] {
 .md-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: #5e6470;
-  float: left;
+  float: inline-start;
   height: 0;
   pointer-events: none;
 }
@@ -887,4 +903,123 @@ html[data-window="player"] body {
   background: rgba(20, 20, 20, 0.85);
   padding: 4px 10px;
   border-radius: var(--radius);
+}
+
+/* ---- player view controls (DM toolbar) ------------------------------- */
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.tb-group-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  padding: 0 3px;
+}
+.tb-group .tb-btn {
+  padding: 4px 6px;
+}
+button.danger-on {
+  background: #7a2320;
+  border-color: #e0564f;
+  color: #fff;
+}
+button.danger-on:hover:not(:disabled) {
+  background: #8f2a26;
+}
+
+/* ---- room title ------------------------------------------------------ */
+.room-title-input {
+  width: 100%;
+  font-size: 19px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px 6px;
+  margin-left: -6px;
+  text-align: start;
+}
+.room-title-input:hover {
+  border-color: var(--border);
+}
+.room-title-input:focus {
+  background: #11131a;
+  border-color: var(--accent);
+  outline: none;
+}
+.room-title-input::placeholder {
+  color: var(--text);
+  opacity: 0.85;
+}
+.room-number-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+.room-number {
+  font-weight: 700;
+  font-size: 12px;
+  background: #2b3f63;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+.map-hover {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  max-width: 45%;
+  background: rgba(20, 20, 24, 0.9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entity-list .desc {
+  text-align: start;
+}
+
+/* ---- player map (player window + DM preview) ------------------------- */
+.player-map {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+.player-blackout {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6a6f7a;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+.player-compass {
+  position: absolute;
+  right: 3%;
+  bottom: 4%;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.7));
+}
+.preview-flag {
+  margin-left: 6px;
+  font-weight: 700;
+  color: #ff8a80;
+}
+.preview-pill.blackout {
+  border-color: #e0564f;
+  color: #ffb4ae;
 }

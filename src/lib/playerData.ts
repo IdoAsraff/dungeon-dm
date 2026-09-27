@@ -3,7 +3,8 @@
  * player-known rooms are included (no descriptions, doors or objects), and
  * only levels with at least one known room.
  */
-import type { Dungeon, Focus, ImageRect, Polygon, Session } from "../types";
+import type { Dungeon, Focus, ImageRect, PlayerRotation, Polygon, Session } from "../types";
+import type { ViewCommand } from "../store/session";
 
 export interface PlayerLevel {
   id: string;
@@ -18,8 +19,13 @@ export interface PlayerData {
   dungeonName: string;
   levels: PlayerLevel[];
   focus: Focus | null;
-  focusNonce: number;
   preferredLevelId: string | null;
+  /** Latest camera command; `viewNonce` changes whenever a new one is issued. */
+  viewCommand: ViewCommand | null;
+  viewNonce: number;
+  blackout: boolean;
+  rotation: PlayerRotation;
+  compass: boolean;
 }
 
 export const EVENTS = {
@@ -38,7 +44,7 @@ export const EVENTS = {
 
 export function buildPlayerData(
   dungeon: Dungeon | null,
-  session: Session & { focusNonce: number },
+  session: Session & { viewNonce: number; viewCommand: ViewCommand | null },
   resolveUrl: (path: string) => string,
 ): PlayerData {
   const levels: PlayerLevel[] = [];
@@ -62,7 +68,11 @@ export function buildPlayerData(
     dungeonName: dungeon?.name ?? "",
     levels,
     focus,
-    focusNonce: session.focusNonce,
     preferredLevelId: session.playerLevelId,
+    viewCommand: session.viewCommand,
+    viewNonce: session.viewNonce,
+    blackout: session.blackout,
+    rotation: session.rotation,
+    compass: session.compass,
   };
 }

@@ -96,3 +96,32 @@ describe("geometry", () => {
     expect(t.y).toBe(50);
   });
 });
+
+describe("rotation", () => {
+  it("rotates boxes 90° clockwise", async () => {
+    const { rotateBox } = await import("./geometry");
+    const b = { x: 2, y: 3, width: 10, height: 4 };
+    expect(rotateBox(b, 0)).toEqual(b);
+    // Corners (2,3) and (12,7) map to (-3,2) and (-7,12).
+    expect(rotateBox(b, 90)).toEqual({ x: -7, y: 2, width: 4, height: 10 });
+  });
+});
+
+describe("focusView (zoom to an item from the sidebar)", () => {
+  it("keeps small, far-away items centred when the zoom is capped", async () => {
+    const { focusView } = await import("./geometry");
+    // A door-sized box far from the origin: fitting it alone would zoom in hugely.
+    const box = { x: 3000, y: 2200, width: 64, height: 26 };
+    const t = focusView(box, 1000, 800, 1.2);
+    expect(t.scale).toBe(1.2);
+    // The box centre must land in the middle of the viewport.
+    expect((box.x + box.width / 2) * t.scale + t.x).toBeCloseTo(500);
+    expect((box.y + box.height / 2) * t.scale + t.y).toBeCloseTo(400);
+  });
+
+  it("zooms out further for items bigger than the viewport", async () => {
+    const { focusView } = await import("./geometry");
+    const t = focusView({ x: 0, y: 0, width: 4000, height: 4000 }, 1000, 800, 1.2);
+    expect(t.scale).toBeLessThan(0.2);
+  });
+});

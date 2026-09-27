@@ -207,6 +207,29 @@ export interface ViewTransform {
   scale: number;
 }
 
+/**
+ * View centred on `box` (world px) that fits it with generous padding, but
+ * never zooms in beyond `maxScale` (so small things like doors keep context).
+ */
+export function focusView(box: Box, viewW: number, viewH: number, maxScale: number): ViewTransform {
+  const scale = Math.min(fitBox(box, viewW, viewH, 0.25).scale, maxScale);
+  return {
+    scale,
+    x: viewW / 2 - (box.x + box.width / 2) * scale,
+    y: viewH / 2 - (box.y + box.height / 2) * scale,
+  };
+}
+
+/**
+ * Bounding box of `box` after rotating the world by `rotation` degrees
+ * clockwise about the origin (screen coordinates, y down): (x, y) -> (-y, x).
+ */
+export function rotateBox(box: Box, rotation: number): Box {
+  if (rotation % 360 === 0) return box;
+  if (rotation % 360 === 90) return { x: -(box.y + box.height), y: box.x, width: box.height, height: box.width };
+  throw new Error(`unsupported rotation ${rotation}`);
+}
+
 /** Transform that fits `box` (world units) into a viewport of the given pixel size. */
 export function fitBox(box: Box, viewW: number, viewH: number, padding = 0.08): ViewTransform {
   const w = Math.max(box.width, 1e-6);

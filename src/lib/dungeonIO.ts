@@ -1,6 +1,6 @@
 import { backend } from "./backend";
 import { parseDungeon, serializeDungeon } from "./serialize";
-import type { Dungeon, Session } from "../types";
+import { DEFAULT_SESSION, type Dungeon, type Session } from "../types";
 import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
@@ -52,7 +52,7 @@ export async function openDungeon(dir: string): Promise<string[]> {
 export async function createDungeon(dir: string, name: string): Promise<void> {
   await closeDungeon();
   const dungeon: Dungeon = { name, background: "", levels: [] };
-  const session: Session = { focus: null, playerLevelId: null };
+  const session: Session = { ...DEFAULT_SESSION };
   await backend.saveFiles(dir, serializeDungeon(dungeon, session), []);
   await openDungeon(dir);
 }
@@ -62,6 +62,6 @@ export async function closeDungeon(): Promise<void> {
   await flush();
   stopAutosave();
   useDoc.getState().load(null);
-  useSession.getState().setSession({ focus: null, playerLevelId: null });
+  useSession.getState().setSession({ ...DEFAULT_SESSION });
   useUi.getState().set({ dungeonDir: null, currentLevelId: null, selection: null, draw: null, dialog: null });
 }

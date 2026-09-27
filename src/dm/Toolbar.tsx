@@ -72,7 +72,7 @@ function LevelsMenu() {
   };
 
   return (
-    <Dropdown label={<>🗺 {current?.name ?? "No level"}</>} title="Levels">
+    <Dropdown label={<>{current?.name ?? "No level"}</>} title="Levels: switch or delete">
       {(close) => (
         <>
           {dungeon.levels.length === 0 && <div className="menu-empty">No levels yet</div>}
@@ -122,7 +122,7 @@ function WindowsMenu() {
   };
   return (
     <div onMouseDown={refresh}>
-      <Dropdown label="🖥 Windows" title="Player window & displays" align="right">
+      <Dropdown label="🖥" title="Windows: player window, fullscreen & displays" align="right">
         {(close) => (
           <div className="menu-form">
             <button
@@ -178,12 +178,65 @@ function WindowsMenu() {
   );
 }
 
+/** DM controls for what the player window shows. */
+function PlayerControls() {
+  const blackout = useSession((s) => s.blackout);
+  const rotation = useSession((s) => s.rotation);
+  const compass = useSession((s) => s.compass);
+  const session = useSession.getState;
+
+  const showWholeLevel = () => {
+    const dungeon = useDoc.getState().dungeon;
+    const levelId = session().playerLevelId ?? useUi.getState().currentLevelId;
+    const level = dungeon?.levels.find((l) => l.id === levelId);
+    if (!level || !level.rooms.some((r) => r.playerKnown)) {
+      useUi.getState().showToast(`Nothing is revealed on ${level?.name ?? "this level"} yet.`);
+      return;
+    }
+    session().showWholeLevel(level.id);
+  };
+
+  return (
+    <div className="tb-group" role="group" aria-label="Player window">
+      <span className="tb-group-label">Players</span>
+      <button
+        className={`tb-btn ${blackout ? "danger-on" : ""}`}
+        onClick={() => session().setBlackout(!blackout)}
+        title={blackout ? "The player window is black — click to show the map again" : "Black out the player window"}
+      >
+        {blackout ? "◼ Blacked out" : "◼ Blackout"}
+      </button>
+      <button
+        className="tb-btn"
+        onClick={showWholeLevel}
+        title="Zoom the player window out to everything revealed on the players' current level (clears the focused room)"
+      >
+        ⤢ Whole level
+      </button>
+      <button
+        className="tb-btn"
+        onClick={() => session().toggleRotation()}
+        title={rotation === 0 ? "Rotate the player view 90° clockwise" : "Rotate the player view back"}
+      >
+        {rotation === 0 ? "⟳ Rotate" : "⟲ Rotate back"}
+      </button>
+      <button
+        className={`tb-btn ${compass ? "active" : ""}`}
+        onClick={() => session().setCompass(!compass)}
+        title={compass ? "Hide the compass on the player window" : "Show a compass on the player window"}
+      >
+        🧭 Compass
+      </button>
+    </div>
+  );
+}
+
 function SaveStatus() {
   const status = useUi((s) => s.saveStatus);
   const error = useUi((s) => s.saveError);
-  const label = status === "saving" ? "Saving…" : status === "error" ? "⚠ Save failed" : "✓ Saved";
+  const label = status === "saving" ? "Saving…" : status === "error" ? "⚠ Save failed" : "✓";
   return (
-    <span className={`save-status ${status}`} title={error ?? "Every change is saved automatically"}>
+    <span className={`save-status ${status}`} title={error ?? "Saved — every change is saved automatically"}>
       {label}
     </span>
   );
@@ -192,8 +245,6 @@ function SaveStatus() {
 export function Toolbar() {
   const dungeon = useDoc((s) => s.dungeon)!;
   const currentLevelId = useUi((s) => s.currentLevelId);
-  const snap = useUi((s) => s.snap);
-  const draw = useUi((s) => s.draw);
   const set = useUi((s) => s.set);
   const canUndo = useStore(useDoc.temporal, (s) => s.pastStates.length > 0);
   const canRedo = useStore(useDoc.temporal, (s) => s.futureStates.length > 0);
@@ -217,7 +268,7 @@ export function Toolbar() {
         )}
       </Dropdown>
       <button className="tb-btn" onClick={() => set({ dialog: { type: "background" } })} title="Dungeon background document">
-        📜 Background
+        Background
       </button>
 
       <span className="tb-sep" />
@@ -231,7 +282,7 @@ export function Toolbar() {
         onClick={() => currentLevelId && set({ dialog: { type: "editLevel", levelId: currentLevelId } })}
         title="Edit this level's name, size, scale and background images"
       >
-        ⚙ Edit level
+        Edit level
       </button>
       <button
         className="tb-btn"
@@ -239,7 +290,7 @@ export function Toolbar() {
         onClick={() => currentLevelId && set({ dialog: { type: "levelDescription", levelId: currentLevelId } })}
         title="View and edit the level description"
       >
-        📄 Level description
+        Description
       </button>
 
       <span className="tb-sep" />
@@ -248,26 +299,12 @@ export function Toolbar() {
           <ToolMenu label="+ Room" title="Draw a new room (corridors are rooms too)" onPick={(t) => startCreate("room", t)} />
           <ToolMenu label="+ Door" title="Draw a door (hidden from players)" onPick={(t) => startCreate("door", t)} />
           <ToolMenu label="+ Object" title="Create global object — a freeform shape with a description, not tied to a room" onPick={(t) => startCreate("object", t)} />
-          {draw && (
-            <button className="tb-btn warn" onClick={() => set({ draw: null })}>
-              Cancel drawing (Esc)
-            </button>
-          )}
-          <select
-            className="tb-select"
-            value={snap}
-            title="Snap drawn points to the grid (hold Alt while drawing to ignore)"
-            onChange={(e) => set({ snap: Number(e.target.value) })}
-          >
-            <option value={1}>Snap: 1 sq</option>
-            <option value={0.5}>Snap: ½ sq</option>
-            <option value={0.25}>Snap: ¼ sq</option>
-            <option value={0}>Snap: off</option>
-          </select>
         </>
       )}
 
       <span className="grow" />
+      <PlayerControls />
+      <span className="tb-sep" />
       <button className="tb-btn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl/⌘+Z)">
         ↶
       </button>

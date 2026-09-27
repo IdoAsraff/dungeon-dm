@@ -15,7 +15,7 @@
  * producing a map of relative path -> file content, which lets the autosaver
  * write only the files that changed.
  */
-import type { BackgroundImage, Dungeon, Level, Point, Session } from "../types";
+import { DEFAULT_SESSION, type BackgroundImage, type Dungeon, type Level, type Point, type Session } from "../types";
 import { toFileRelative, toRootRelative } from "./markdownPaths";
 
 export const FORMAT_VERSION = 1;
@@ -39,7 +39,7 @@ interface LevelJson {
   scale: number;
   dmImage: BackgroundImage | null;
   playerImage: BackgroundImage | null;
-  rooms: { id: string; number: number; playerKnown: boolean; polygon: JsonPoint[] }[];
+  rooms: { id: string; number: number; title?: string; playerKnown: boolean; polygon: JsonPoint[] }[];
   doors: { id: string; polygon: JsonPoint[] }[];
   objects: { id: string; polygon: JsonPoint[] }[];
 }
@@ -79,7 +79,13 @@ export function serializeDungeon(dungeon: Dungeon, session: Session): FileMap {
     format: FORMAT_VERSION,
     name: dungeon.name,
     levels: dungeon.levels.map((l) => l.id),
-    session: { focus: session.focus, playerLevelId: session.playerLevelId },
+    session: {
+      focus: session.focus,
+      playerLevelId: session.playerLevelId,
+      blackout: session.blackout,
+      rotation: session.rotation,
+      compass: session.compass,
+    },
   };
   files["dungeon.json"] = prettyJson(dj);
   putMd(files, "background.md", dungeon.background);
@@ -99,6 +105,7 @@ function serializeLevel(level: Level, files: FileMap) {
     rooms: level.rooms.map((r) => ({
       id: r.id,
       number: r.number,
+      title: r.title,
       playerKnown: r.playerKnown,
       polygon: toJsonPoly(r.polygon),
     })),
@@ -165,6 +172,7 @@ export function parseDungeon(files: FileMap): { dungeon: Dungeon; session: Sessi
       rooms: (lj.rooms ?? []).map((r) => ({
         id: r.id,
         number: r.number,
+        title: typeof r.title === "string" ? r.title : "",
         playerKnown: !!r.playerKnown,
         polygon: fromJsonPoly(r.polygon),
         readAloud: readMd(files, roomFile(id, r.number, "read-aloud")),
@@ -192,8 +200,12 @@ export function parseDungeon(files: FileMap): { dungeon: Dungeon; session: Sessi
     s.focus &&
     levels.some((l) => l.id === s.focus!.levelId && l.rooms.some((r) => r.id === s.focus!.roomId && r.playerKnown));
   const session: Session = {
+    ...DEFAULT_SESSION,
     focus: focusValid ? s.focus! : null,
     playerLevelId: s.playerLevelId && levels.some((l) => l.id === s.playerLevelId) ? s.playerLevelId : null,
+    blackout: s.blackout === true,
+    rotation: s.rotation === 90 ? 90 : 0,
+    compass: s.compass === true,
   };
   return { dungeon, session, warnings };
 }

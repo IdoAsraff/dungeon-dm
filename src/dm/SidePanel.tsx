@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { Door, EntityRef, GlobalObject, Level, Room } from "../types";
+import { useEffect, useRef, useState } from "react";
+import { roomTitle, type Door, type EntityRef, type GlobalObject, type Level, type Room } from "../types";
 import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
@@ -38,8 +38,8 @@ function RoomNumberEditor({ level, room }: { level: Level; room: Room }) {
   const [error, setError] = useState<string | null>(null);
   if (!editing) {
     return (
-      <h2 className="panel-title">
-        Room {room.number}
+      <div className="room-number-row">
+        <span className="room-number">#{room.number}</span>
         <button
           className="icon-btn"
           title="Change room number"
@@ -51,7 +51,7 @@ function RoomNumberEditor({ level, room }: { level: Level; room: Room }) {
         >
           ✎
         </button>
-      </h2>
+      </div>
     );
   }
   const commit = () => {
@@ -102,6 +102,34 @@ function RoomNumberEditor({ level, room }: { level: Level; room: Room }) {
   );
 }
 
+/** Room title; empty means "Room <number>". Grabs focus right after the room is drawn. */
+function RoomTitleInput({ level, room }: { level: Level; room: Room }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const focusTitleFor = useUi((s) => s.focusTitleFor);
+  useEffect(() => {
+    if (focusTitleFor !== room.id) return;
+    ref.current?.focus();
+    useUi.getState().set({ focusTitleFor: null });
+  }, [focusTitleFor, room.id]);
+  return (
+    <input
+      ref={ref}
+      className="room-title-input"
+      dir="auto"
+      value={room.title}
+      placeholder={`Room ${room.number}`}
+      title="Room title (leave empty for “Room <number>”). Press Enter when done."
+      onChange={(e) => useDoc.getState().updateRoom(level.id, room.id, { title: e.target.value }, `room-title-${room.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === "Escape") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+}
+
 function RoomPanel({ level, room }: { level: Level; room: Room }) {
   const focus = useSession((s) => s.focus);
   const doc = useDoc.getState();
@@ -114,6 +142,7 @@ function RoomPanel({ level, room }: { level: Level; room: Room }) {
 
   return (
     <div className="panel">
+      <RoomTitleInput level={level} room={room} />
       <RoomNumberEditor key={room.id} level={level} room={room} />
       <div className="badges">
         {room.playerKnown ? <span className="badge known">👁 Known to players</span> : <span className="badge hidden">Hidden from players</span>}
@@ -159,7 +188,7 @@ function RoomPanel({ level, room }: { level: Level; room: Room }) {
           onClick={() => {
             doc.deleteRoom(level.id, room.id);
             select(null);
-            useUi.getState().showToast(`Room ${room.number} deleted — Ctrl/⌘+Z to undo`);
+            useUi.getState().showToast(`${roomTitle(room)} deleted — Ctrl/⌘+Z to undo`);
           }}
         >
           🗑 Delete room
@@ -242,7 +271,9 @@ function LevelOverview({ level }: { level: Level }) {
           <li key={r.id}>
             <button onClick={() => select({ kind: "room", id: r.id }, true)}>
               <span className="num">{r.number}</span>
-              <span className="desc">{firstLine(r.readAloud) || firstLine(r.dmNotes) || <i className="muted">no description</i>}</span>
+              <span className="desc" dir="auto">
+                {r.title.trim() ? r.title : <span className="muted">{roomTitle(r)}</span>}
+              </span>
               {r.playerKnown && <span title="Known to players">👁</span>}
               {focus?.roomId === r.id && <span title="Player window focus">◎</span>}
             </button>
@@ -257,7 +288,7 @@ function LevelOverview({ level }: { level: Level }) {
               <li key={d.id}>
                 <button onClick={() => select({ kind: "door", id: d.id }, true)}>
                   <span className="num door">D{i + 1}</span>
-                  <span className="desc">{firstLine(d.description) || <i className="muted">no description</i>}</span>
+                  <span className="desc" dir="auto">{firstLine(d.description) || <i className="muted">no description</i>}</span>
                 </button>
               </li>
             ))}
@@ -272,7 +303,7 @@ function LevelOverview({ level }: { level: Level }) {
               <li key={o.id}>
                 <button onClick={() => select({ kind: "object", id: o.id }, true)}>
                   <span className="num object">O{i + 1}</span>
-                  <span className="desc">{firstLine(o.description) || <i className="muted">no description</i>}</span>
+                  <span className="desc" dir="auto">{firstLine(o.description) || <i className="muted">no description</i>}</span>
                 </button>
               </li>
             ))}

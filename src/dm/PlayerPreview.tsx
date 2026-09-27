@@ -4,7 +4,7 @@ import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { assetUrl, backend } from "../lib/backend";
 import { buildPlayerData } from "../lib/playerData";
-import { PlayerMapView } from "../map/PlayerMapView";
+import { compassSizeFor, PlayerMapView } from "../map/PlayerMapView";
 
 const STORAGE_KEY = "dm.playerPreview";
 
@@ -57,8 +57,12 @@ export function PlayerPreview() {
 
   if (prefs.minimized) {
     return (
-      <button className="preview-pill" onClick={() => setPrefs({ ...prefs, minimized: false })} title="Show player view preview">
-        ▣ Player view
+      <button
+        className={`preview-pill ${data.blackout ? "blackout" : ""}`}
+        onClick={() => setPrefs({ ...prefs, minimized: false })}
+        title="Show player view preview"
+      >
+        ▣ Player view{data.blackout ? " · BLACKED OUT" : ""}
       </button>
     );
   }
@@ -75,6 +79,7 @@ export function PlayerPreview() {
     <div className="player-preview" style={{ width }}>
       <div className="preview-header">
         <span>Player view{level ? ` · ${level.name}` : ""}</span>
+        {data.blackout && <span className="preview-flag">BLACKED OUT</span>}
         <span className="grow" />
         <button className="icon-btn" title="Minimize" onClick={() => setPrefs({ ...prefs, minimized: true })}>
           ▁
@@ -82,7 +87,19 @@ export function PlayerPreview() {
       </div>
       <div className="preview-body" style={{ height }}>
         {vp ? (
-          <PlayerMapView level={level} focusRoomId={focusRoomId} width={width} height={height} view={view} interactive={false} />
+          <PlayerMapView
+            level={level}
+            focusRoomId={focusRoomId}
+            width={width}
+            height={height}
+            view={view}
+            rotation={vp.rotation ?? 0}
+            compass={data.compass}
+            compassSize={compassSizeFor(vp.width, vp.height) * f}
+            blackout={data.blackout}
+            blackoutLabel="Players see a black screen"
+            interactive={false}
+          />
         ) : (
           <div className="preview-empty">
             <span>Player window not open</span>

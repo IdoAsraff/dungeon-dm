@@ -32,6 +32,8 @@ export interface Room {
   id: string;
   /** Identifies the room within its level. Unique per level. */
   number: number;
+  /** Optional name; displayed as "Room <number>" when empty (see roomTitle). */
+  title: string;
   polygon: Polygon;
   readAloud: string;
   dmNotes: string;
@@ -79,10 +81,30 @@ export interface Focus {
   roomId: string;
 }
 
+/** Rotation of the player window's view, in degrees clockwise. */
+export type PlayerRotation = 0 | 90;
+
 /** Runtime state that is persisted with the dungeon but not part of undo history. */
 export interface Session {
   focus: Focus | null;
   playerLevelId: string | null;
+  /** Player window shows nothing but black. */
+  blackout: boolean;
+  rotation: PlayerRotation;
+  /** Show a compass on the player window. */
+  compass: boolean;
+}
+
+export const DEFAULT_SESSION: Session = {
+  focus: null,
+  playerLevelId: null,
+  blackout: false,
+  rotation: 0,
+  compass: false,
+};
+
+export function roomTitle(room: Pick<Room, "title" | "number">): string {
+  return room.title.trim() || `Room ${room.number}`;
 }
 
 export type EntityKind = "room" | "door" | "object";

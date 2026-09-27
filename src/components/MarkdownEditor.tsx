@@ -69,6 +69,9 @@ export function MarkdownEditor({ value, onChange, placeholder, className, autoFo
       Markdown.configure({ html: false, linkify: true, transformPastedText: true, breaks: false }),
     ],
     content: value,
+    // Every paragraph/heading/list item gets dir="auto": Hebrew paragraphs
+    // become right-to-left, English ones stay left-to-right.
+    textDirection: "auto",
     autofocus: autoFocus ? "end" : false,
     onUpdate: ({ editor }) => {
       const md = getMarkdown(editor);
