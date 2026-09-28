@@ -26,6 +26,9 @@ export interface Reveal {
   field?: string;
 }
 
+/** The DM window's main views (⌘1 / ⌘2 / ⌘3). */
+export type MainView = "dungeon" | "notes" | "music";
+
 export const LEVELS_FOLDER = "levels";
 export const ATTACHMENTS_FOLDER = "attachments";
 
@@ -42,7 +45,7 @@ interface NotesState {
   folders: string[];
   attachments: string[];
 
-  mainView: "dungeon" | "notes";
+  mainView: MainView;
   sidebar: "files" | "search";
   tabs: Tab[];
   activeTab: string | null;
@@ -170,7 +173,7 @@ export async function loadNotes(dir: string) {
   let activeTab: string | null = null;
   let expanded: string[] = [];
   let folds: Record<string, string[]> = {};
-  let mainView: "dungeon" | "notes" = "dungeon";
+  let mainView: MainView = "dungeon";
   if (ws) {
     try {
       const w = JSON.parse(ws);
@@ -178,7 +181,7 @@ export async function loadNotes(dir: string) {
       activeTab = tabs[w.activeTab]?.id ?? tabs[0]?.id ?? null;
       expanded = Array.isArray(w.expanded) ? w.expanded : [];
       folds = w.folds && typeof w.folds === "object" ? w.folds : {};
-      mainView = w.mainView === "notes" ? "notes" : "dungeon";
+      mainView = w.mainView === "notes" || w.mainView === "music" ? w.mainView : "dungeon";
     } catch {
       /* ignore a corrupt workspace file */
     }

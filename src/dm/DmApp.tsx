@@ -17,6 +17,7 @@ import { Dialogs } from "./Dialogs";
 import { CombatPanel } from "./CombatPanel";
 import { useSfxTriggers } from "../audio/triggers";
 import { usePrefs } from "../lib/prefs";
+import { MusicView, useMusicLifecycle } from "../music/MusicView";
 import { EditorView } from "@codemirror/view";
 import { openSearchPanel } from "@codemirror/search";
 import { NotesView } from "../notes/NotesView";
@@ -103,6 +104,9 @@ function useNotesKeys() {
       } else if (mod && !e.shiftKey && key === "2") {
         e.preventDefault();
         notes.set({ mainView: "notes" });
+      } else if (mod && !e.shiftKey && key === "3") {
+        e.preventDefault();
+        notes.set({ mainView: "music" });
       } else if (notes.mainView === "notes" && mod && !e.shiftKey && key === "w" && notes.activeTab) {
         e.preventDefault();
         closeTab(notes.activeTab);
@@ -172,6 +176,7 @@ export function DmApp() {
   useNotesKeys();
   useSelectionGuard();
   useSfxTriggers();
+  useMusicLifecycle();
   useEffect(() => void usePrefs.getState().load(), []);
   const mainView = useNotes((s) => s.mainView);
 
@@ -231,6 +236,11 @@ export function DmApp() {
           <CombatPanel />
         </div>
       </div>
+      {mainView === "music" && (
+        <div className="music-host">
+          <MusicView />
+        </div>
+      )}
       <QuickSwitcher />
       <Dialogs />
       <ConfirmHost />

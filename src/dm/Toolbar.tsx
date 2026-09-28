@@ -7,7 +7,8 @@ import { backend, type MonitorInfo, type Settings } from "../lib/backend";
 import { closeDungeon } from "../lib/dungeonIO";
 import { confirmAsync, Dropdown } from "../components/ui";
 import type { EntityKind } from "../types";
-import { openDoc, useNotes } from "../notes/store";
+import { openDoc, useNotes, type MainView } from "../notes/store";
+import { MusicTab } from "../music/MiniPlayer";
 
 export const TOOLS: { tool: DrawTool; label: string; icon: string }[] = [
   { tool: "box", label: "Box", icon: "▭" },
@@ -277,7 +278,7 @@ export function Toolbar() {
   const canRedo = useStore(useDoc.temporal, (s) => s.futureStates.length > 0);
   const hasLevel = !!currentLevelId && dungeon.levels.some((l) => l.id === currentLevelId);
   const mainView = useNotes((s) => s.mainView);
-  const setView = (v: "dungeon" | "notes") => useNotes.getState().set({ mainView: v });
+  const setView = (v: MainView) => useNotes.getState().set({ mainView: v });
 
   return (
     <div className="toolbar">
@@ -303,6 +304,7 @@ export function Toolbar() {
         <button className={mainView === "notes" ? "on" : ""} onClick={() => setView("notes")} title="Notes (⌘2) · ⌘O open a note · ⌘⇧F search everything">
           📝 Notes
         </button>
+        <MusicTab on={mainView === "music"} onClick={() => setView("music")} />
       </div>
 
       {mainView === "dungeon" && (
