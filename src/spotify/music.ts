@@ -34,6 +34,8 @@ interface MusicState {
   searchQuery: string;
   results: { tracks: sp.SpTrack[]; playlists: sp.SpPlaylist[]; albums: sp.SpAlbum[] } | null;
   searching: boolean;
+  /** What the middle of the Music view shows. */
+  center: "open" | "search";
   player: sp.SpPlayer | null;
   /** When `player` was fetched (to advance the progress bar between polls). */
   polledAt: number;
@@ -54,6 +56,7 @@ export const useMusic = create<MusicState>()((set) => ({
   searchQuery: "",
   results: null,
   searching: false,
+  center: "open",
   player: null,
   polledAt: 0,
   devices: [],
@@ -101,7 +104,7 @@ export async function openPlaylist(id: string, known?: sp.SpPlaylist | PlaylistR
   const meta = known && "uri" in known ? known : (get().myPlaylists.find((p) => p.id === id) ?? null);
   const ref = known ? toRef(known) : null;
   const base: OpenList = { kind: "playlist", id, uri: `spotify:playlist:${id}`, ref, meta, tracks: [], loading: true, error: null };
-  patch({ open: base });
+  patch({ open: base, center: "open" });
   const still = () => get().open?.kind === "playlist" && get().open?.id === id;
   try {
     const [m, tracks] = await Promise.all([meta ? Promise.resolve(meta) : sp.getPlaylist(id).catch(() => null), sp.getPlaylistTracks(id)]);
@@ -117,7 +120,7 @@ export async function openPlaylist(id: string, known?: sp.SpPlaylist | PlaylistR
 
 export async function openAlbum(id: string) {
   const base: OpenList = { kind: "album", id, uri: `spotify:album:${id}`, ref: null, meta: null, tracks: [], loading: true, error: null };
-  patch({ open: base });
+  patch({ open: base, center: "open" });
   const still = () => get().open?.kind === "album" && get().open?.id === id;
   try {
     const { album, tracks } = await sp.getAlbum(id);
@@ -131,7 +134,8 @@ let searchSeq = 0;
 export async function runSearch(q: string) {
   patch({ searchQuery: q });
   const query = q.trim();
-  if (!query) return patch({ results: null, searching: false });
+  if (!query) return patch({ results: null, searching: false, center: "open" });
+  patch({ center: "search" });
   const seq = ++searchSeq;
   patch({ searching: true });
   try {
@@ -316,9 +320,18 @@ export async function openSpotifyApp() {
 
 // ---- editing playlists ------------------------------------------------------------------
 
+/** Your playlists you can add songs to (your own and collaborative ones). */
+export function editablePlaylists(): sp.SpPlaylist[] {
+  return get().myPlaylists.filter(canEdit);
+}
+
 export function canEdit(p: sp.SpPlaylist | null): boolean {
   const me = get().me;
   return !!p && !!me && (p.ownerId === me.id || p.collaborative);
+}
+
+function bumpTotal(playlistId: string, by: number) {
+  patch({ myPlaylists: get().myPlaylists.map((p) => (p.id === playlistId && p.total !== null ? { ...p, total: Math.max(0, p.total + by) } : p)) });
 }
 
 export async function addTrackToPlaylist(playlistId: string, track: sp.SpTrack) {
@@ -326,6 +339,7 @@ export async function addTrackToPlaylist(playlistId: string, track: sp.SpTrack) 
     await sp.addToPlaylist(playlistId, [track.uri]);
     const open = get().open;
     if (open?.kind === "playlist" && open.id === playlistId && !open.loading) patch({ open: { ...open, tracks: [...open.tracks, track] } });
+    bumpTotal(playlistId, 1);
     const name = get().myPlaylists.find((p) => p.id === playlistId)?.name ?? "the playlist";
     useUi.getState().showToast(`Added “${track.name}” to ${name}`);
   } catch (e) {
@@ -337,7 +351,9 @@ export async function removeTrackFromPlaylist(playlistId: string, track: sp.SpTr
   try {
     await sp.removeFromPlaylist(playlistId, track.uri);
     const open = get().open;
+    const removed = open?.kind === "playlist" && open.id === playlistId ? open.tracks.filter((t) => t.uri === track.uri).length : 1;
     if (open?.kind === "playlist" && open.id === playlistId) patch({ open: { ...open, tracks: open.tracks.filter((t) => t.uri !== track.uri) } });
+    bumpTotal(playlistId, -removed);
   } catch (e) {
     report(e);
   }

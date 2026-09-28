@@ -3,7 +3,12 @@ import { usePrefs } from "../lib/prefs";
 import { useDoc } from "../store/doc";
 import { createFakeSpotify } from "./fakeSpotify";
 import {
+  addTrackToPlaylist,
+  canEdit,
+  loadLibrary,
   openPlaylist,
+  removeTrackFromPlaylist,
+  runSearch,
   pin,
   pinnedPlaylists,
   playContext,
@@ -146,5 +151,35 @@ describe("open playlist", () => {
     const open = useMusic.getState().open!;
     expect(open.ref?.name).toBe("Daily Mix");
     expect(open.error).toMatch(/can still play it/);
+  });
+});
+
+describe("editing and search", () => {
+  it("adds and removes songs on your own playlists only", async () => {
+    await loadLibrary();
+    const mine = useMusic.getState().myPlaylists;
+    expect(canEdit(mine.find((p) => p.id === "tavern")!)).toBe(true);
+    expect(canEdit(mine.find((p) => p.id === "spotifymix")!)).toBe(false);
+    await openPlaylist("tavern");
+    const x = { uri: uri("x"), id: "x", name: "x", artists: "Bard", album: "", image: null, durationMs: 1 };
+    await addTrackToPlaylist("tavern", x);
+    expect(useMusic.getState().open!.tracks.map((t) => t.name)).toEqual(["a", "b", "c", "x"]);
+    expect(fake.playlists[0].tracks.map((t) => t.name)).toEqual(["a", "b", "c", "x"]);
+    expect(useMusic.getState().myPlaylists.find((p) => p.id === "tavern")!.total).toBe(4);
+    await removeTrackFromPlaylist("tavern", useMusic.getState().open!.tracks[0]);
+    expect(fake.playlists[0].tracks.map((t) => t.name)).toEqual(["b", "c", "x"]);
+    expect(useMusic.getState().open!.tracks).toHaveLength(3);
+  });
+
+  it("searches songs and playlists and ignores stale answers", async () => {
+    const first = runSearch("bat");
+    const second = runSearch("a");
+    await Promise.all([first, second]);
+    const r = useMusic.getState().results!;
+    expect(useMusic.getState().center).toBe("search");
+    expect(r.tracks.map((t) => t.name)).toContain("a");
+    expect(r.playlists.map((p) => p.name)).toEqual(["Tavern", "Battle", "Daily Mix"]);
+    await runSearch("");
+    expect(useMusic.getState().center).toBe("open");
   });
 });

@@ -3,12 +3,15 @@ import { useEffect, useState, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { usePrefs, type PlaylistRef, type Transition } from "../lib/prefs";
 import { useDoc } from "../store/doc";
-import { Dropdown } from "../components/ui";
+import { confirmAsync, Dropdown } from "../components/ui";
+import { AddToPlaylist, SearchBox, SearchResults } from "./MusicSearch";
+import { Cover, fmtTime } from "./parts";
 import { connectSpotify, disconnectSpotify, isConnected, REDIRECT_URI } from "../spotify/auth";
 import { parseSpotifyLink } from "../spotify/links";
 import { getPlaylist, type SpPlaylist, type SpTrack } from "../spotify/api";
 import { sfx } from "../audio/triggers";
 import {
+  canEdit,
   changeVolume,
   loadDevices,
   loadLibrary,
@@ -17,6 +20,7 @@ import {
   pin,
   playContext,
   playTrack,
+  removeTrackFromPlaylist,
   reorderPinned,
   seekTo,
   skipNext,
@@ -31,11 +35,6 @@ import {
 } from "../spotify/music";
 
 const EMPTY: PlaylistRef[] = [];
-
-export function fmtTime(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
 
 export const playlistUri = (id: string) => `spotify:playlist:${id}`;
 
@@ -66,16 +65,6 @@ export function useProgress(): number {
   if (!player?.track) return 0;
   const p = player.isPlaying ? player.progressMs + Math.max(0, now - polledAt) : player.progressMs;
   return Math.min(p, player.track.durationMs);
-}
-
-export function Cover({ src, size = 40 }: { src: string | null | undefined; size?: number }) {
-  return src ? (
-    <img className="music-cover" src={src} width={size} height={size} alt="" draggable={false} />
-  ) : (
-    <span className="music-cover empty" style={{ width: size, height: size, fontSize: size * 0.45 }}>
-      ♪
-    </span>
-  );
 }
 
 /** A slider that updates while dragging and sends the value once the hand stops. */
@@ -462,6 +451,7 @@ function OpenPanel() {
   const general = usePrefs((s) => s.generalPlaylists);
   const contextUri = useMusic((s) => s.player?.contextUri);
   const isPlaying = useMusic((s) => !!s.player?.isPlaying);
+  const hasResults = useMusic((s) => !!s.results);
   if (!open) {
     return (
       <div className="music-empty">
@@ -476,8 +466,23 @@ function OpenPanel() {
   const sub = open.kind === "album" ? `Album · ${(open.meta as { artists?: string } | null)?.artists ?? ""}` : pl ? `Playlist · ${pl.ownerName}` : "Playlist";
   const here = contextUri === open.uri;
   const ref: PlaylistRef = { id: open.id, name: name || "Spotify playlist", image };
+  const editable = canEdit(pl);
+  const remove = async (t: SpTrack) => {
+    const ok = await confirmAsync(
+      <>
+        Remove <b>{t.name}</b> from <b>{name}</b> in Spotify?
+      </>,
+      { confirmLabel: "Remove", danger: true },
+    );
+    if (ok) void removeTrackFromPlaylist(open.id, t);
+  };
   return (
     <div className="music-open">
+      {hasResults && (
+        <button className="icon-btn music-back" onClick={() => useMusic.getState().set({ center: "search" })}>
+          ← Search results
+        </button>
+      )}
       <header className="music-open-head">
         <Cover src={image} size={96} />
         <div className="grow">
@@ -506,7 +511,22 @@ function OpenPanel() {
       {open.error && <div className="error small">{open.error}</div>}
       <div className="track-list">
         {open.tracks.map((t, i) => (
-          <TrackRow key={`${t.uri}-${i}`} t={t} i={i} contextUri={open.uri} />
+          <TrackRow
+            key={`${t.uri}-${i}`}
+            t={t}
+            i={i}
+            contextUri={open.uri}
+            actions={
+              <>
+                <AddToPlaylist track={t} />
+                {editable && (
+                  <button className="icon-btn danger-hover" title="Remove from this playlist (in Spotify)" onClick={() => void remove(t)}>
+                    ✕
+                  </button>
+                )}
+              </>
+            }
+          />
         ))}
       </div>
     </div>
@@ -641,6 +661,7 @@ function NowPlayingBar() {
 export function MusicView() {
   const loaded = usePrefs((s) => s.loaded);
   const connected = usePrefs((s) => isConnected(s.spotify));
+  const center = useMusic((s) => s.center);
   if (!loaded) return <div className="music-view" />;
   if (!connected) return <ConnectScreen />;
   return (
@@ -648,7 +669,8 @@ export function MusicView() {
       <div className="music-body">
         <Sidebar />
         <main className="music-main">
-          <OpenPanel />
+          <SearchBox />
+          <div className="music-center">{center === "search" ? <SearchResults /> : <OpenPanel />}</div>
         </main>
       </div>
       <NowPlayingBar />
