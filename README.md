@@ -4,8 +4,9 @@ A two-window desktop tool for running a dungeon crawl: a **DM window** with the 
 map, room descriptions and controls, and a **player window** (for a TV or second screen)
 that shows only the rooms the players know about. Everything outside them is blacked out.
 
-The DM window has two views: **Dungeon** (the map) and **Notes**, an Obsidian-like
-folder of linked markdown notes that also contains a generated document per level.
+The DM window has three views: **Dungeon** (the map), **Notes**, an Obsidian-like
+folder of linked markdown notes that also contains a generated document per level, and
+**Music**, which plays your Spotify playlists.
 
 Built with Tauri 2 (Rust), React, TypeScript, Konva (map canvas), CodeMirror 6
 (Obsidian-style live-preview markdown) and Zustand + zundo (undo/redo).
@@ -135,7 +136,7 @@ Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd
 
 | Shortcut | Action |
 | --- | --- |
-| <kbd>⌘1</kbd> / <kbd>⌘2</kbd> | Dungeon / Notes |
+| <kbd>⌘1</kbd> / <kbd>⌘2</kbd> / <kbd>⌘3</kbd> | Dungeon / Notes / Music |
 | <kbd>⌘O</kbd> | Open a note or level document by name |
 | <kbd>⌘⇧F</kbd> | Search everything |
 | <kbd>⌘F</kbd> | Search in the open note |
@@ -144,6 +145,46 @@ Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd
 | <kbd>⌘⌥←</kbd> / <kbd>⌘⌥→</kbd> | Back / forward |
 | <kbd>⌘B</kbd> / <kbd>⌘I</kbd> / <kbd>⌘K</kbd> | Bold / italic / link |
 
+### Music and sound effects
+
+**🎵 Music** (<kbd>⌘3</kbd>) remote-controls Spotify. The music plays in the Spotify app
+on this Mac (or another of your Spotify devices), so keep Spotify open. It needs
+**Spotify Premium**.
+
+- **Connecting (once).** At [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
+  create an app: any name and description, Redirect URI
+  `http://127.0.0.1:8888/callback`, and tick **Web API**. Paste its **Client ID** on
+  the Connect screen and approve in the browser. The Client ID and login are kept in
+  this Mac's app settings, never in the dungeon folder. **Disconnect** is at the bottom
+  left.
+- **Playlists.** **This dungeon** (saved in the dungeon folder) and **General** (shared
+  by all dungeons) are your pinned playlists: ＋ adds one of yours or a pasted Spotify
+  link, ✕ removes it from the list (never from Spotify), and you drag rows to reorder.
+  **All my playlists** lists your whole library with **+Dungeon** / **+General**.
+- **Playing.** ▶ plays a playlist, resuming where it was last left while the app is
+  open; **⏮ From the start** ignores that. Click a playlist to see its songs; ▶ on a
+  song plays it within the playlist. The bar at the bottom has play/pause, previous and
+  next, shuffle, seek, volume, the device, and the **transition**: *Immediate cut*,
+  *Short fade* or *Slow fade* when switching music (pause and continue are always
+  immediate; devices without volume control always cut). If no Spotify app is open,
+  the bar offers **Open Spotify**.
+- **Toolbar.** While a song is loaded, the 🎵 tab shows its name, with ⏸ and ⏭ next to
+  it, on every view.
+- **Search** finds songs, playlists and albums. ▶ plays, ＋ adds a song to one of your
+  playlists, and found playlists can be pinned. In a playlist you own (or a
+  collaborative one) ✕ removes a song, after asking.
+- **Links in text.** In notes, room and level texts, `[[` also suggests your pinned
+  playlists (🎵) and inserts a link like `[🎵 Tavern](https://open.spotify.com/playlist/…)`.
+  Any Spotify playlist, song or album link (a markdown link or a pasted URL) shows a
+  ▶ button: click to play it, ⌘-click to show it in the Music view.
+- Some playlists made by Spotify (e.g. mixes) can be played but Spotify doesn't let
+  apps list their songs.
+
+**Sound effects** play in the DM's speakers: a deep discovery sound when a room is
+revealed, a similar one when a handout is shown, and a soft tick for pings. The
+Music view has an on/off switch, a volume slider and **Test**. They are generated in
+the app (no sound files) and don't need Spotify.
+
 ## Dungeon format
 
 A dungeon is a plain folder, easy to read and friendly to git:
@@ -151,7 +192,7 @@ A dungeon is a plain folder, easy to read and friendly to git:
 ```
 my-dungeon/
   dungeon.json                    name, level order, player-window state (focus, blackout,
-                                  rotation, compass)
+                                  rotation, compass), combat list, pinned playlists
   assets/                         images (backgrounds, images in descriptions)
   notes/                          your notes: markdown files and folders (Obsidian-compatible)
     attachments/                  images pasted into notes
@@ -196,3 +237,6 @@ The first room is already revealed to the players.
 | `src/editor/*` | CodeMirror setup: live preview, folding, links, image paste, contexts |
 | `src/notes/*` | Notes: store, file tree, tabs, level documents, links/backlinks, search, peek |
 | `src/lib/wikiLinks.ts` | `[[link]]` parsing, resolution and rewriting on rename |
+| `src/spotify/*` | Spotify: PKCE login, Web API client, playback/fades/resume store, link parsing, a fake Spotify for tests |
+| `src/music/*` | Music view, search, toolbar mini-player |
+| `src/audio/*` | Synthesized sound effects and what triggers them |
