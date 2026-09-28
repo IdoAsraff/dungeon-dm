@@ -117,6 +117,21 @@ describe("playback", () => {
     expect(fake.devices[0].volume_percent).toBe(60);
   });
 
+  it("restores the volume if switching fails mid-fade", async () => {
+    await playContext("spotify:playlist:tavern");
+    await refreshPlayer();
+    usePrefs.setState({ musicTransition: "short" });
+    const real = fake.fetch;
+    (globalThis as unknown as { __spotifyFetch: unknown }).__spotifyFetch = async (url: string, init?: RequestInit) =>
+      url.includes("/me/player/play") ? new Response(JSON.stringify({ error: { status: 500, message: "Boom" } }), { status: 500 }) : real(url, init);
+    vi.useFakeTimers();
+    const done = playContext("spotify:playlist:battle");
+    await vi.runAllTimersAsync();
+    await done;
+    vi.useRealTimers();
+    expect(fake.devices[0].volume_percent).toBe(60);
+  });
+
   it("cuts when the device has no volume control", async () => {
     await playContext("spotify:playlist:tavern");
     await refreshPlayer();

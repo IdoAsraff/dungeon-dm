@@ -52,10 +52,18 @@ export async function api<T>(
     }
     if (res.status === 204 || res.status === 202) return null;
     const text = await res.text();
-    const json = text ? (JSON.parse(text) as unknown) : null;
+    // Player commands sometimes answer 200 with a plain-text body instead of
+    // an empty one, so a body that isn't JSON is not an error by itself.
+    let json: unknown = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
     if (!res.ok) {
       const err = (json as { error?: { message?: string; reason?: string } } | null)?.error;
-      throw new SpotifyError(res.status, err?.message ?? `Spotify error ${res.status}`, err?.reason);
+      const message = err?.message ?? (json === null && text && text.length < 200 ? text : `Spotify error ${res.status}`);
+      throw new SpotifyError(res.status, message, err?.reason);
     }
     return json as T;
   }

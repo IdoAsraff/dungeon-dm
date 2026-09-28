@@ -67,6 +67,9 @@ export function createFakeSpotify(init: { playlists: FakePlaylist[]; devices?: F
   const active = () => devices.find((d) => d.is_active) ?? null;
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
   const empty = () => new Response(null, { status: 204 });
+  // Like the real API, player commands often answer 200 with a plain-text body.
+  let quirk = 0;
+  const done = () => (quirk++ % 2 ? new Response(null, { status: 204 }) : new Response("ok", { status: 200, headers: { "Content-Type": "text/plain" } }));
   const fail = (status: number, message: string, reason?: string) => json({ error: { status, message, reason } }, status);
 
   function pickDevice(id: string | null) {
@@ -132,7 +135,7 @@ export function createFakeSpotify(init: { playlists: FakePlaylist[]; devices?: F
       const d = pickDevice(body.device_ids[0]);
       if (!d) return fail(404, "Device not found");
       if (body.play) player.playing = true;
-      return empty();
+      return done();
     }
     if (path.startsWith("/me/player/")) {
       if (init.premium === false) return fail(403, "Player command failed: Premium required", "PREMIUM_REQUIRED");
@@ -155,32 +158,32 @@ export function createFakeSpotify(init: { playlists: FakePlaylist[]; devices?: F
         else player.positionMs = position();
         player.playing = true;
         player.since = Date.now();
-        return empty();
+        return done();
       }
       if (verb === "pause") {
         player.positionMs = position();
         player.playing = false;
-        return empty();
+        return done();
       }
       if (verb === "next" || verb === "previous") {
         player.index = Math.max(0, Math.min(player.queue.length - 1, player.index + (verb === "next" ? 1 : -1)));
         player.positionMs = 0;
         player.since = Date.now();
-        return empty();
+        return done();
       }
       if (verb === "seek") {
         player.positionMs = Number(q.get("position_ms"));
         player.since = Date.now();
-        return empty();
+        return done();
       }
       if (verb === "volume") {
         if (!d.supports_volume) return fail(403, "Cannot control device volume", "VOLUME_CONTROL_DISALLOW");
         d.volume_percent = Number(q.get("volume_percent"));
-        return empty();
+        return done();
       }
       if (verb === "shuffle") {
         player.shuffle = q.get("state") === "true";
-        return empty();
+        return done();
       }
     }
     return fail(404, `Fake Spotify has no ${method} ${path}`);

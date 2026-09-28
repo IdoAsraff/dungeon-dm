@@ -83,4 +83,12 @@ describe("api", () => {
     expect(usePrefs.getState().spotify?.refreshToken).toBe("r");
     await expect(api("GET", "/playlists/x")).rejects.toBeInstanceOf(SpotifyError);
   });
+
+  it("accepts plain-text success bodies from player commands", async () => {
+    g.__spotifyFetch = vi.fn(async (url: string) =>
+      url.includes("/next") ? new Response("OK", { status: 200, headers: { "Content-Type": "text/plain" } }) : new Response("Not found here", { status: 404 }),
+    );
+    expect(await api("POST", "/me/player/next")).toBeNull();
+    await expect(api("GET", "/nope")).rejects.toMatchObject({ status: 404, message: "Not found here" });
+  });
 });

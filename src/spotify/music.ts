@@ -233,14 +233,21 @@ async function startPlayback(what: { contextUri?: string; uris?: string[]; offse
   const volume = device.volume ?? current?.device?.volume ?? null;
   const canFade = fade > 0 && !!current?.isPlaying && device.supportsVolume && volume !== null && volume > 0;
   patch({ switching: true });
+  let faded = false;
   try {
-    if (canFade) await ramp(device.id, volume!, 0, fade / 2);
+    if (canFade) {
+      faded = true;
+      await ramp(device.id, volume!, 0, fade / 2);
+    }
     await sp.play({ deviceId: device.id, ...what });
     if (canFade) {
       await sleep(350);
       await ramp(device.id, 0, volume!, fade / 2);
     }
+    faded = false;
   } finally {
+    // If anything failed mid-fade, don't leave the music turned down.
+    if (faded) await sp.setVolume(volume!, device.id).catch(() => {});
     patch({ switching: false });
     setTimeout(() => void refreshPlayer(), 400);
   }
