@@ -68,7 +68,7 @@ export async function openDungeon(dir: string): Promise<string[]> {
 /** Creates a new, empty dungeon in `dir` and opens it. */
 export async function createDungeon(dir: string, name: string): Promise<void> {
   await closeDungeon();
-  const dungeon: Dungeon = { name, levels: [] };
+  const dungeon: Dungeon = { name, levels: [], playlists: [] };
   const session: Session = { ...DEFAULT_SESSION };
   await backend.saveFiles(dir, serializeDungeon(dungeon, session), []);
   await openDungeon(dir);

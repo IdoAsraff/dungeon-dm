@@ -5,14 +5,10 @@
  */
 import { create } from "zustand";
 import { backend } from "./backend";
+import type { PlaylistRef } from "../types";
 
+export type { PlaylistRef };
 export type Transition = "cut" | "short" | "slow";
-
-export interface PlaylistRef {
-  id: string;
-  name: string;
-  image?: string | null;
-}
 
 export interface SpotifyAuth {
   clientId: string;

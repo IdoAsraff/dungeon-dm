@@ -49,7 +49,7 @@ describe("combat list", () => {
 
   it("is saved with the dungeon", () => {
     const session = { ...DEFAULT_SESSION, combat: [{ id: "a", name: "בלאק", hp: -2, side: "enemy" as const }] };
-    const files = serializeDungeon({ name: "D", levels: [] }, session);
+    const files = serializeDungeon({ name: "D", levels: [], playlists: [] }, session);
     expect(parseDungeon(files).session.combat).toEqual(session.combat);
   });
 });
@@ -59,8 +59,8 @@ describe("sound effect triggers", () => {
     const { newlyRevealed } = await import("../audio/triggers");
     const room = (id: string, known: boolean) => ({ id, number: 1, title: "", polygon: [], readAloud: "", dmNotes: "", playerKnown: known });
     const level = (rooms: ReturnType<typeof room>[]) => ({ id: "L", name: "L", width: 1, height: 1, scale: 5, description: "", dmImage: null, playerImage: null, rooms, doors: [], objects: [] });
-    const a = { name: "D", levels: [level([room("r1", true), room("r2", false)])] };
-    const b = { name: "D", levels: [level([room("r1", true), room("r2", true)])] };
+    const a = { name: "D", levels: [level([room("r1", true), room("r2", false)])], playlists: [] };
+    const b = { name: "D", levels: [level([room("r1", true), room("r2", true)])], playlists: [] };
     expect(newlyRevealed(a, b)).toEqual(["r2"]);
     expect(newlyRevealed(b, a)).toEqual([]); // concealing is silent
     expect(newlyRevealed(null, b)).toEqual([]); // loading is silent

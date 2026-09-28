@@ -7,6 +7,7 @@ import { lowestFreeNumber } from "./ids";
 
 const dungeon: Dungeon = {
   name: "Test Crypt",
+  playlists: [{ id: "37i9dQZF1DX", name: "Tavern", image: null }],
   levels: [
     {
       id: "level-1",

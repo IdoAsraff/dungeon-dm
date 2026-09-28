@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { produce, type Draft } from "immer";
-import type { BackgroundImage, Door, Dungeon, EntityKind, GlobalObject, Level, Polygon, Room } from "../types";
+import type { BackgroundImage, Door, Dungeon, EntityKind, GlobalObject, Level, PlaylistRef, Polygon, Room } from "../types";
 import { lowestFreeNumber, newId } from "../lib/ids";
 import type { FieldRef } from "../notes/sources";
 
@@ -54,6 +54,9 @@ export interface DocState {
    * a field unchanged.
    */
   mapTexts: (fn: (text: string, ref: FieldRef) => string) => void;
+
+  /** Replaces this dungeon's pinned playlists (add, remove and reorder). */
+  setPlaylists: (playlists: PlaylistRef[]) => void;
 }
 
 // ---- undo coalescing -------------------------------------------------------
@@ -202,6 +205,8 @@ export const useDoc = create<DocState>()(
           });
           if (changed) mutate((d) => void Object.assign(d, next));
         },
+
+        setPlaylists: (playlists) => mutate((d) => void (d.playlists = playlists)),
 
         setPolygon: (kind, levelId, id, polygon) =>
           mutate((d) => {

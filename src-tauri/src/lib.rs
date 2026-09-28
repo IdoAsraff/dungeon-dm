@@ -358,6 +358,94 @@ fn notes_trash(dir: String, path: String) -> Result<String, String> {
     trash_in_notes(Path::new(&dir), &path)
 }
 
+// ---------------------------------------------------------------------------
+// Spotify login (OAuth with PKCE via a one-shot loopback redirect)
+// ---------------------------------------------------------------------------
+
+const SPOTIFY_REDIRECT_ADDR: &str = "127.0.0.1:8888";
+
+fn callback_page(ok: bool) -> String {
+    let (title, text) = if ok {
+        ("Spotify connected", "You can close this tab and go back to Dungeon DM.")
+    } else {
+        ("Spotify was not connected", "Go back to Dungeon DM and try again.")
+    };
+    let body = format!(
+        "<!doctype html><meta charset=utf-8><title>{title}</title>\
+         <body style=\"font-family:-apple-system,sans-serif;background:#16181d;color:#e6e3dc;\
+         display:flex;align-items:center;justify-content:center;height:90vh\">\
+         <div style=\"text-align:center\"><h1>{title}</h1><p>{text}</p></div>"
+    );
+    format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    )
+}
+
+/// Waits for Spotify to redirect the browser to /callback and returns the
+/// query string (code or error, plus state). Gives up after `timeout`.
+fn wait_for_callback(listener: std::net::TcpListener, timeout: std::time::Duration) -> Result<String, String> {
+    use std::io::{Read, Write};
+    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        match listener.accept() {
+            Ok((mut stream, _)) => {
+                let _ = stream.set_nonblocking(false);
+                let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 2048];
+                while !buf.windows(4).any(|w| w == b"\r\n\r\n") && buf.len() < 16384 {
+                    match stream.read(&mut chunk) {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => buf.extend_from_slice(&chunk[..n]),
+                    }
+                }
+                let request = String::from_utf8_lossy(&buf);
+                let target = request.split_whitespace().nth(1).unwrap_or("");
+                if let Some(query) = target.strip_prefix("/callback?") {
+                    let ok = query.split('&').any(|p| p.starts_with("code="));
+                    let _ = stream.write_all(callback_page(ok).as_bytes());
+                    return Ok(query.to_string());
+                }
+                let _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                if std::time::Instant::now() > deadline {
+                    return Err("Timed out waiting for Spotify. Try connecting again.".into());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+}
+
+/// Opens Spotify's authorization page in the browser and returns the query
+/// string Spotify redirects back with (to http://127.0.0.1:8888/callback).
+#[tauri::command]
+async fn spotify_authorize(app: AppHandle, auth_url: String) -> Result<String, String> {
+    use tauri_plugin_opener::OpenerExt;
+    if !auth_url.starts_with("https://accounts.spotify.com/authorize?") {
+        return Err("unexpected authorization URL".into());
+    }
+    let listener = std::net::TcpListener::bind(SPOTIFY_REDIRECT_ADDR).map_err(|e| {
+        format!("Could not listen on {SPOTIFY_REDIRECT_ADDR} ({e}). Is another app using port 8888?")
+    })?;
+    app.opener().open_url(&auth_url, None::<&str>).map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || wait_for_callback(listener, std::time::Duration::from_secs(300)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Launches (or brings forward) the Spotify desktop app.
+#[tauri::command]
+fn open_spotify(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener().open_url("spotify:", None::<&str>).map_err(|e| e.to_string())
+}
+
 /// Reads a text file inside the dungeon (None if it does not exist).
 #[tauri::command]
 fn read_text(dir: String, path: String) -> Result<Option<String>, String> {
@@ -551,6 +639,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_http::init())
         .setup(|app| {
             let settings = read_settings(app.handle());
             if let Some(dm) = app.get_webview_window(DM_LABEL) {
@@ -582,6 +671,8 @@ pub fn run() {
             notes_move,
             notes_trash,
             read_text,
+            spotify_authorize,
+            open_spotify,
             get_settings,
             update_settings,
             list_monitors,
@@ -699,6 +790,26 @@ mod tests {
         assert_eq!(store_bytes(root, "notes/attachments", "Pasted image.png", b"a").unwrap(), "notes/attachments/Pasted-image.png");
         assert_eq!(store_bytes(root, "notes/attachments", "Pasted image.png", b"b").unwrap(), "notes/attachments/Pasted-image-2.png");
         assert!(store_bytes(root, "../outside", "x.png", b"a").is_err());
+    }
+
+    #[test]
+    fn captures_the_spotify_callback() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let waiter = std::thread::spawn(move || wait_for_callback(listener, std::time::Duration::from_secs(5)));
+        // A stray favicon request first, then the real redirect.
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        s.write_all(b"GET /favicon.ico HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        let mut resp = String::new();
+        s.read_to_string(&mut resp).unwrap();
+        assert!(resp.starts_with("HTTP/1.1 404"));
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        s.write_all(b"GET /callback?code=abc&state=xyz HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        let mut resp = String::new();
+        s.read_to_string(&mut resp).unwrap();
+        assert!(resp.contains("Spotify connected"));
+        assert_eq!(waiter.join().unwrap().unwrap(), "code=abc&state=xyz");
     }
 
     #[test]

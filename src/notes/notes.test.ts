@@ -22,7 +22,7 @@ const level: Level = {
   doors: [{ id: "d1", polygon: [], description: "Stuck stone door (DC 15)." }],
   objects: [],
 };
-const dungeon: Dungeon = { name: "Test", levels: [level] };
+const dungeon: Dungeon = { name: "Test", levels: [level], playlists: [] };
 
 describe("search", () => {
   it("ignores case, accents and niqqud but reports original offsets", () => {
@@ -98,7 +98,7 @@ describe("level documents", () => {
     expect(levelHeadingTarget(level, "42")).toEqual({ kind: "room", roomId: "a" });
     expect(levelHeadingTarget(level, "הגן המרכזי")).toEqual({ kind: "room", roomId: "a" });
     expect(levelHeadingTarget(level, "Background")).toEqual({ kind: "section", name: "background" });
-    const two: Dungeon = { name: "x", levels: [level, { ...level, id: "L2" }] };
+    const two: Dungeon = { name: "x", levels: [level, { ...level, id: "L2" }], playlists: [] };
     expect([...levelDocNames(two).values()]).toEqual(["Grove Level", "Grove Level (2)"]);
     const idx = buildIndex(["Grove Level.md"], two);
     expect(idx.resolve("levels/Grove Level (2)")?.id).toBe("level:L2");

@@ -69,9 +69,18 @@ export interface Level {
   objects: GlobalObject[];
 }
 
+/** A Spotify playlist pinned in the Music view. */
+export interface PlaylistRef {
+  id: string;
+  name: string;
+  image?: string | null;
+}
+
 export interface Dungeon {
   name: string;
   levels: Level[];
+  /** Spotify playlists pinned for this dungeon (Music view, "This dungeon"). */
+  playlists: PlaylistRef[];
 }
 
 /** Which room the player window is focused on. */
