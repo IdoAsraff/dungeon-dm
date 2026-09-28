@@ -15,6 +15,8 @@ import { SidePanel } from "./SidePanel";
 import { PlayerPreview } from "./PlayerPreview";
 import { Dialogs } from "./Dialogs";
 import { CombatPanel } from "./CombatPanel";
+import { useSfxTriggers } from "../audio/triggers";
+import { usePrefs } from "../lib/prefs";
 import { EditorView } from "@codemirror/view";
 import { openSearchPanel } from "@codemirror/search";
 import { NotesView } from "../notes/NotesView";
@@ -169,6 +171,8 @@ export function DmApp() {
   useUndoKeys();
   useNotesKeys();
   useSelectionGuard();
+  useSfxTriggers();
+  useEffect(() => void usePrefs.getState().load(), []);
   const mainView = useNotes((s) => s.mainView);
 
   // Save pending changes before the window closes.

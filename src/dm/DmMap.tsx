@@ -25,6 +25,7 @@ import { useUi, type DrawMode } from "../store/ui";
 import { emit } from "@tauri-apps/api/event";
 import { EVENTS } from "../lib/playerData";
 import { PingRings, usePings } from "../map/effects";
+import { sfx } from "../audio/triggers";
 
 const COLORS = {
   room: { r: 96, g: 160, b: 255 },
@@ -190,6 +191,7 @@ export function DmMap({ level }: { level: Level }) {
     const ping = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, levelId: level.id, x: round3(p.x), y: round3(p.y) };
     usePings.getState().add(ping);
     void emit(EVENTS.ping, ping);
+    sfx("ping");
     const playerLevel = useUi.getState().playerViewport?.levelId;
     if (playerLevel && playerLevel !== level.id) useUi.getState().showToast("The players are looking at another level — they won't see this ping.");
   };

@@ -53,3 +53,16 @@ describe("combat list", () => {
     expect(parseDungeon(files).session.combat).toEqual(session.combat);
   });
 });
+
+describe("sound effect triggers", () => {
+  it("detects rooms that became known, but not on load", async () => {
+    const { newlyRevealed } = await import("../audio/triggers");
+    const room = (id: string, known: boolean) => ({ id, number: 1, title: "", polygon: [], readAloud: "", dmNotes: "", playerKnown: known });
+    const level = (rooms: ReturnType<typeof room>[]) => ({ id: "L", name: "L", width: 1, height: 1, scale: 5, description: "", dmImage: null, playerImage: null, rooms, doors: [], objects: [] });
+    const a = { name: "D", levels: [level([room("r1", true), room("r2", false)])] };
+    const b = { name: "D", levels: [level([room("r1", true), room("r2", true)])] };
+    expect(newlyRevealed(a, b)).toEqual(["r2"]);
+    expect(newlyRevealed(b, a)).toEqual([]); // concealing is silent
+    expect(newlyRevealed(null, b)).toEqual([]); // loading is silent
+  });
+});

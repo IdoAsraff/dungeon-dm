@@ -379,6 +379,9 @@ struct Settings {
     dm_monitor: Option<String>,
     player_monitor: Option<String>,
     player_fullscreen: bool,
+    /// Frontend preferences (sound effects, music, Spotify login...) kept as-is.
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
 }
 
 struct AppState {
@@ -705,5 +708,11 @@ mod tests {
         assert!(merged.player_fullscreen);
         assert_eq!(merged.dm_monitor.as_deref(), Some("Built-in"));
         assert!(merged.recent_dungeons.is_empty());
+        // Unknown keys are kept (frontend preferences).
+        let merged = merge_settings(&merged, serde_json::json!({ "sfxVolume": 0.4, "generalPlaylists": [{ "id": "x" }] })).unwrap();
+        assert_eq!(merged.extra["sfxVolume"], serde_json::json!(0.4));
+        let again = merge_settings(&merged, serde_json::json!({ "sfxEnabled": false })).unwrap();
+        assert_eq!(again.extra["generalPlaylists"][0]["id"], "x");
+        assert_eq!(again.extra["sfxEnabled"], false);
     }
 }
