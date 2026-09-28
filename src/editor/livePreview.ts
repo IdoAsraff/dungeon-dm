@@ -10,6 +10,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate
 import type { SyntaxNode } from "@lezer/common";
 import { getContext, headingOffset, type ResolvedImage } from "./context";
 import { parseWikiLinks } from "../lib/wikiLinks";
+import { parseSpotifyLink } from "../spotify/links";
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif)$/i;
 /** Obsidian tags: #word, may contain / - _ and digits but not be purely numeric. */
@@ -71,6 +72,39 @@ class ImageWidget extends WidgetType {
   }
   ignoreEvent(e: Event) {
     // Let clicks on the image place the cursor there (revealing the source).
+    return e.type !== "mousedown";
+  }
+}
+
+/** ▶ in front of a Spotify link, or a whole chip for a bare Spotify URL. */
+class SpotifyWidget extends WidgetType {
+  constructor(
+    readonly href: string,
+    readonly label: string | null,
+  ) {
+    super();
+  }
+  eq(o: SpotifyWidget) {
+    return o.href === this.href && o.label === this.label;
+  }
+  toDOM() {
+    const el = document.createElement("span");
+    el.className = this.label === null ? "cm-spotify-play" : "cm-spotify-chip";
+    el.dataset.spotify = this.href;
+    el.title = "Play · ⌘-click to show it in Music";
+    const play = document.createElement("span");
+    play.className = "cm-spotify-icon";
+    play.textContent = "▶";
+    el.append(play);
+    if (this.label !== null) {
+      const text = document.createElement("span");
+      text.className = "cm-spotify";
+      text.textContent = this.label;
+      el.append(text);
+    }
+    return el;
+  }
+  ignoreEvent(e: Event) {
     return e.type !== "mousedown";
   }
 }
@@ -217,7 +251,12 @@ function build(view: EditorView): DecorationSet {
             const open = marks[0];
             const close = marks[1];
             const href = url ? doc.sliceString(url.from, url.to) : "";
-            if (!touches(ref.from, ref.to) && url) {
+            if (!touches(ref.from, ref.to) && url && parseSpotifyLink(href)) {
+              decos.push(Decoration.replace({ widget: new SpotifyWidget(href, null) }).range(open.from, open.to));
+              decos.push(hide.range(close.from, ref.to));
+              if (close.from > open.to)
+                decos.push(Decoration.mark({ class: "cm-spotify", attributes: { "data-spotify": href, title: "Play · ⌘-click to show it in Music" } }).range(open.to, close.from));
+            } else if (!touches(ref.from, ref.to) && url) {
               decos.push(hide.range(open.from, open.to));
               decos.push(hide.range(close.from, ref.to));
               if (close.from > open.to)
@@ -241,6 +280,11 @@ function build(view: EditorView): DecorationSet {
           case "URL":
             if (!hasAncestor(node, ["Link", "Image"])) {
               const href = doc.sliceString(ref.from, ref.to);
+              if (parseSpotifyLink(href)) {
+                if (touches(ref.from, ref.to)) decos.push(Decoration.mark({ class: "cm-link-src" }).range(ref.from, ref.to));
+                else decos.push(Decoration.replace({ widget: new SpotifyWidget(href, ctx.spotifyLabel(href)) }).range(ref.from, ref.to));
+                return;
+              }
               decos.push(Decoration.mark({ class: "cm-link", attributes: { "data-href": href } }).range(ref.from, ref.to));
             }
             return;
@@ -446,11 +490,14 @@ export const lineDirection = ViewPlugin.fromClass(
 export const linkClicks = EditorView.domEventHandlers({
   mousedown(e, view) {
     if (e.button !== 0) return false;
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-href],[data-target],[data-tag]");
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-href],[data-target],[data-tag],[data-spotify]");
     if (!el || !view.contentDOM.contains(el)) return false;
     const ctx = getContext(view.state);
     e.preventDefault();
-    if (el.dataset.target !== undefined) {
+    if (el.dataset.spotify !== undefined) {
+      if (ctx.playSpotify) ctx.playSpotify(el.dataset.spotify, { open: e.metaKey || e.ctrlKey });
+      else ctx.openUrl(el.dataset.spotify);
+    } else if (el.dataset.target !== undefined) {
       ctx.openWikiLink(el.dataset.target, el.dataset.heading || null, { newTab: e.metaKey || e.ctrlKey });
     } else if (el.dataset.href !== undefined) {
       ctx.openUrl(el.dataset.href);

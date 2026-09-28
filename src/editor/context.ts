@@ -18,6 +18,13 @@ export interface LinkCompletion {
   detail?: string;
 }
 
+export interface PlaylistCompletion {
+  name: string;
+  /** Markdown link inserted in place of `[[...`. */
+  markdown: string;
+  detail: string;
+}
+
 export interface EditorContext {
   /** Standard markdown image `![alt](src)`. */
   resolveImage: (src: string) => ResolvedImage | null;
@@ -36,6 +43,12 @@ export interface EditorContext {
   showHandout: ((path: string) => void) | null;
   linkCompletions: () => LinkCompletion[];
   headingCompletions: (target: string) => LinkCompletion[];
+  /** Plays a Spotify link (with `open`, shows it in the Music view instead). */
+  playSpotify: ((url: string, opts: { open: boolean }) => void) | null;
+  /** What a bare Spotify URL shows as (e.g. the playlist's name). */
+  spotifyLabel: (url: string) => string;
+  /** Pinned playlists offered by the [[ autocomplete. */
+  playlistCompletions: () => PlaylistCompletion[];
 }
 
 export const noopContext: EditorContext = {
@@ -50,6 +63,9 @@ export const noopContext: EditorContext = {
   showHandout: null,
   linkCompletions: () => [],
   headingCompletions: () => [],
+  playSpotify: null,
+  spotifyLabel: () => "Spotify",
+  playlistCompletions: () => [],
 };
 
 export const editorContext = Facet.define<EditorContext, EditorContext>({

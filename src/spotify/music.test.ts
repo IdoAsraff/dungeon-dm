@@ -11,6 +11,8 @@ import {
   runSearch,
   pin,
   pinnedPlaylists,
+  playlistCompletions,
+  spotifyLinkLabel,
   playContext,
   playTrack,
   refreshPlayer,
@@ -181,5 +183,25 @@ describe("editing and search", () => {
     expect(r.playlists.map((p) => p.name)).toEqual(["Tavern", "Battle", "Daily Mix"]);
     await runSearch("");
     expect(useMusic.getState().center).toBe("open");
+  });
+});
+
+describe("links in text", () => {
+  it("labels bare links with the name, fetched once", async () => {
+    pin("general", { id: "37i9dQZF1DX", name: "Tavern", image: null });
+    expect(spotifyLinkLabel("https://open.spotify.com/playlist/37i9dQZF1DX")).toBe("🎵 Tavern");
+    const song = `https://open.spotify.com/track/${"a0000000000"}`;
+    expect(spotifyLinkLabel(song)).toBe("Spotify song");
+    await vi.waitFor(() => expect(spotifyLinkLabel(song)).toBe("a — Bard"));
+    expect(fake.log.filter((l) => l.startsWith("GET /tracks"))).toHaveLength(1);
+  });
+
+  it("offers pinned playlists as markdown links", () => {
+    pin("dungeon", { id: "battle", name: "Battle", image: null });
+    pin("general", { id: "tavern", name: "Tavern", image: null });
+    expect(playlistCompletions()).toEqual([
+      { name: "Battle", markdown: "[🎵 Battle](https://open.spotify.com/playlist/battle)", detail: "This dungeon" },
+      { name: "Tavern", markdown: "[🎵 Tavern](https://open.spotify.com/playlist/tavern)", detail: "General" },
+    ]);
   });
 });

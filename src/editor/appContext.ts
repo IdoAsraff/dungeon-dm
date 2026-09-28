@@ -4,6 +4,7 @@
  */
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { playlistCompletions, playSpotifyLink, spotifyLinkLabel } from "../spotify/music";
 import { assetUrl, backend } from "../lib/backend";
 import { normalizePath } from "../lib/markdownPaths";
 import { useUi } from "../store/ui";
@@ -60,7 +61,12 @@ async function pickImageFile(): Promise<string | null> {
   return typeof picked === "string" ? picked : null;
 }
 
-function common(origin: Origin): Pick<EditorContext, "linkExists" | "openWikiLink" | "openUrl" | "openTag" | "showHandout" | "linkCompletions" | "headingCompletions" | "resolveEmbed"> {
+function common(
+  origin: Origin,
+): Pick<
+  EditorContext,
+  "linkExists" | "openWikiLink" | "openUrl" | "openTag" | "showHandout" | "linkCompletions" | "headingCompletions" | "resolveEmbed" | "playSpotify" | "spotifyLabel" | "playlistCompletions"
+> {
   return {
     resolveEmbed,
     linkExists: (target) => !!linkIndex().resolve(target),
@@ -72,6 +78,9 @@ function common(origin: Origin): Pick<EditorContext, "linkExists" | "openWikiLin
     showHandout: (path) => useSession.getState().showHandout(path),
     linkCompletions,
     headingCompletions,
+    playSpotify: playSpotifyLink,
+    spotifyLabel: spotifyLinkLabel,
+    playlistCompletions,
   };
 }
 

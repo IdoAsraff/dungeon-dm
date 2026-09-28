@@ -11,7 +11,7 @@ import { useNotes } from "../notes/store";
 import * as sp from "./api";
 import { SpotifyError } from "./http";
 import { isConnected } from "./auth";
-import type { SpotifyLink } from "./links";
+import { parseSpotifyLink, playlistMarkdown, type SpotifyLink } from "./links";
 
 /** The playlist or album shown in the middle of the Music view. */
 export interface OpenList {
@@ -401,4 +401,78 @@ export function pinnedPlaylists(): { ref: PlaylistRef; where: "dungeon" | "gener
   for (const ref of dungeonPlaylists()) if (!seen.has(ref.id)) (seen.add(ref.id), out.push({ ref, where: "dungeon" }));
   for (const ref of usePrefs.getState().generalPlaylists) if (!seen.has(ref.id)) (seen.add(ref.id), out.push({ ref, where: "general" }));
   return out;
+}
+
+// ---- links in text ------------------------------------------------------------------------
+
+/** Plays a Spotify link from a note or room text; with `open`, shows it in the Music view. */
+export function playSpotifyLink(url: string, opts: { open: boolean }) {
+  const link = parseSpotifyLink(url);
+  if (!link) return;
+  if (!isConnected(usePrefs.getState().spotify)) {
+    useNotes.getState().set({ mainView: "music" });
+    useUi.getState().showToast("🎵 Connect Spotify first to play music links.");
+    return;
+  }
+  if (!opts.open) return void playLink(link);
+  useNotes.getState().set({ mainView: "music" });
+  if (link.kind === "playlist") {
+    const known = get().myPlaylists.find((p) => p.id === link.id) ?? pinnedPlaylists().find((p) => p.ref.id === link.id)?.ref;
+    void openPlaylist(link.id, known);
+  } else if (link.kind === "album") void openAlbum(link.id);
+  else
+    void sp
+      .getTrack(link.id)
+      .then((t) => t && runSearch(`${t.name} ${t.artists}`))
+      .catch(report);
+}
+
+/** Names of linked songs/playlists/albums, looked up once per app run. */
+const linkNames = new Map<string, string>();
+const lookedUp = new Set<string>();
+let redrawTimer: ReturnType<typeof setTimeout> | null = null;
+
+function redrawEditors() {
+  if (redrawTimer) return;
+  redrawTimer = setTimeout(() => {
+    redrawTimer = null;
+    useNotes.getState().set({ indexVersion: useNotes.getState().indexVersion + 1 });
+  }, 150);
+}
+
+const KIND_LABEL = { playlist: "Spotify playlist", track: "Spotify song", album: "Spotify album" } as const;
+
+/** What a bare Spotify URL in text shows as. */
+export function spotifyLinkLabel(url: string): string {
+  const link = parseSpotifyLink(url);
+  if (!link) return "Spotify";
+  const cached = linkNames.get(link.uri);
+  if (cached) return cached;
+  if (link.kind === "playlist") {
+    const known = pinnedPlaylists().find((p) => p.ref.id === link.id)?.ref ?? get().myPlaylists.find((p) => p.id === link.id);
+    if (known) return `🎵 ${known.name}`;
+  }
+  if (isConnected(usePrefs.getState().spotify) && !lookedUp.has(link.uri)) {
+    lookedUp.add(link.uri);
+    const lookup =
+      link.kind === "track"
+        ? sp.getTrack(link.id).then((t) => t && `${t.name} — ${t.artists}`)
+        : link.kind === "album"
+          ? sp.getAlbum(link.id).then(({ album }) => album && `💿 ${album.name}`)
+          : sp.getPlaylist(link.id).then((p) => p && `🎵 ${p.name}`);
+    lookup
+      .then((name) => {
+        if (name) (linkNames.set(link.uri, name), redrawEditors());
+      })
+      .catch(() => {});
+  }
+  return KIND_LABEL[link.kind];
+}
+
+export function playlistCompletions() {
+  return pinnedPlaylists().map(({ ref, where }) => ({
+    name: ref.name,
+    markdown: playlistMarkdown(ref.name, ref.id),
+    detail: where === "dungeon" ? "This dungeon" : "General",
+  }));
 }

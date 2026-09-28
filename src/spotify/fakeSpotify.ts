@@ -99,6 +99,11 @@ export function createFakeSpotify(init: { playlists: FakePlaylist[]; devices?: F
         return json({ snapshot_id: "s" });
       }
     }
+    m = /^\/tracks\/([^/]+)$/.exec(path);
+    if (m) {
+      const t = allTracks().find((x) => x.id === m![1]);
+      return t ? json(trackJson(t)) : fail(404, "Resource not found");
+    }
     m = /^\/albums\/([^/]+)$/.exec(path);
     if (m) return json({ id: m[1], uri: `spotify:album:${m[1]}`, name: "An Album", artists: [{ name: "Band" }], images: [], tracks: { items: allTracks().slice(0, 2).map(trackJson) } });
     if (path === "/search") {

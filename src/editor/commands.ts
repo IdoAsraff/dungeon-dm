@@ -111,9 +111,24 @@ export function wikiLinkCompletion(context: CompletionContext): CompletionResult
       validFor: /^[^[\]\n#|]*$/,
     };
   }
+  // Pinned playlists replace the whole `[[...` with a markdown link.
+  const playlists = ctx.playlistCompletions().map((p) => ({
+    label: `🎵 ${p.name}`,
+    detail: p.detail,
+    type: "music",
+    boost: -1,
+    apply: (view: EditorView, _c: unknown, _from: number, to: number) => {
+      const end = to + (close ? 0 : 2);
+      view.dispatch({
+        changes: { from: before.from, to: end, insert: p.markdown },
+        selection: { anchor: before.from + p.markdown.length },
+        userEvent: "input.complete",
+      });
+    },
+  }));
   return {
     from: before.from + start,
-    options: ctx.linkCompletions().map((c) => ({ label: c.label, detail: c.detail, apply: c.label + close })),
+    options: [...ctx.linkCompletions().map((c) => ({ label: c.label, detail: c.detail, apply: c.label + close })), ...playlists],
     validFor: /^[^[\]\n#|]*$/,
   };
 }

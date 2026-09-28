@@ -681,6 +681,43 @@ input[type="checkbox"] {
   opacity: 0.85;
 }
 .cm-wikilink-src,
+.cm-spotify-play,
+.cm-spotify-chip {
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cm-spotify-chip {
+  padding: 0 6px 0 2px;
+  border-radius: 10px;
+  background: rgba(90, 210, 140, 0.1);
+}
+.cm-spotify-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  height: 1.35em;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: #1db954;
+  color: #0c1a10;
+  font-size: 0.62em;
+  vertical-align: 0.18em;
+  padding-left: 0.1em;
+}
+.cm-spotify-play:hover .cm-spotify-icon,
+.cm-spotify-chip:hover .cm-spotify-icon {
+  background: #3be477;
+}
+.cm-spotify,
+.cm-spotify * {
+  color: #7fdca0 !important;
+  cursor: pointer;
+}
+.cm-spotify:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(127, 220, 160, 0.4);
+}
 .cm-link-src {
   color: var(--md-link);
 }
