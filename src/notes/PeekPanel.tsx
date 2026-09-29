@@ -1,14 +1,17 @@
 import { useNotes, openDoc } from "./store";
 import { docTitle } from "./links";
 import { DocPane } from "./NotesView";
+import { useResizableWidth } from "../components/useResizableWidth";
 
 /** Slide-over on the dungeon tab showing a linked note without leaving the map. */
 export function PeekPanel() {
   const peek = useNotes((s) => s.peek);
+  const { width, handleProps } = useResizableWidth("dm.peekPanel", 560, 320, 1400, "left");
   if (!peek) return null;
   const close = () => useNotes.getState().set({ peek: null });
   return (
-    <div className="peek-panel">
+    <div className="peek-panel" style={{ width }}>
+      <div className="panel-resize left" {...handleProps} />
       <div className="peek-header">
         <span className="peek-title" dir="auto">
           {peek.kind === "level" ? "🗺 " : "📝 "}

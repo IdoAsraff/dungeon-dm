@@ -5,6 +5,7 @@ import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { openDoc } from "../notes/store";
+import { useResizableWidth } from "../components/useResizableWidth";
 import { ToolMenu } from "./Toolbar";
 
 function select(ref: EntityRef | null, zoom = false) {
@@ -332,14 +333,18 @@ export function SidePanel({ level }: { level: Level }) {
     const item = list.find((o) => o.id === selection.id);
     if (item) content = <ShapePanel level={level} kind={selection.kind} item={item} />;
   }
+  const { width, handleProps } = useResizableWidth("dm.sidePanel", 420, 300, 900, "left");
   return (
-    <aside className="side-panel">
+    <aside className="side-panel" style={{ width }}>
+      <div className="panel-resize left" {...handleProps} />
+      <div className="side-panel-scroll">
       {selection && (
         <button className="back-link" onClick={() => select(null)}>
           ← {level.name} overview
         </button>
       )}
       {content}
+      </div>
     </aside>
   );
 }
