@@ -18,6 +18,7 @@ import {
 } from "./store";
 import { levelDocNames, moveWithLinks } from "./links";
 import { SRD_CONDITION_LIST, SRD_FOLDER, SRD_MONSTER_LIST } from "../rules/srd";
+import { STATS_FOLDER, createStatblockNote } from "../rules/statNotes";
 
 interface FolderNode {
   path: string;
@@ -226,6 +227,9 @@ export function FileTree() {
         <button className="icon-btn" title="New note (⌘N)" onClick={() => void newNote(active?.kind === "note" ? dirOf(active.path) : "")}>
           ＋📝
         </button>
+        <button className="icon-btn" title="New stat block (a creature for the combat tracker), in the Stats folder" onClick={() => void createStatblockNote()}>
+          ＋📜
+        </button>
         <button className="icon-btn" title="New folder" onClick={() => void newFolder("")}>
           ＋📁
         </button>
@@ -354,6 +358,7 @@ function ContextMenuItems({
       return (
         <>
           {item("New note", () => void newNote(target.path))}
+          {item("New stat block", () => void createStatblockNote(target.path || STATS_FOLDER))}
           {item("New folder", () => void newFolder(target.path))}
           {target.path && item("Rename", () => rename(target.path))}
           {target.path && item("Delete…", () => void deleteItem(target), true)}

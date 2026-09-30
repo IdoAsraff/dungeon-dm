@@ -196,21 +196,24 @@ function imageName(v: unknown): string | null {
 /** Reads the YAML of a statblock block. Throws on malformed YAML. */
 export function statblockFromYaml(yamlText: string): Statblock {
   const y = (parseYaml(yamlText) ?? {}) as Record<string, any>;
-  const base = emptyStatblock(str(y.name) || "Unnamed");
+  const base = emptyStatblock("Unnamed");
+  // Defaults only for missing keys: an emptied field stays empty while editing.
+  const has = (k: string) => y[k] !== undefined && y[k] !== null;
   const acRaw = str(y.ac);
   const acNoteMatch = /\(([^)]*)\)/.exec(acRaw);
   const type = [str(y.type), y.subtype ? `(${str(y.subtype)})` : ""].filter(Boolean).join(" ");
   const stats = Array.isArray(y.stats) && y.stats.length === 6 ? (y.stats.map((n: unknown) => num(n, 10)) as Statblock["stats"]) : base.stats;
   return {
     ...base,
-    size: str(y.size) || base.size,
-    type: type || base.type,
-    alignment: str(y.alignment) || base.alignment,
+    name: has("name") ? str(y.name) : base.name,
+    size: has("size") ? str(y.size) : base.size,
+    type: has("type") || has("subtype") ? type : base.type,
+    alignment: has("alignment") ? str(y.alignment) : base.alignment,
     ac: num(acRaw, base.ac),
     acNote: str(y.ac_note) || (acNoteMatch ? acNoteMatch[1] : ""),
     hp: num(y.hp, base.hp),
     hitDice: str(y.hit_dice),
-    speed: str(y.speed) || base.speed,
+    speed: has("speed") ? str(y.speed) : base.speed,
     stats,
     saves: listToText(y.saves, SAVE_KEYS, SAVE_SHORT),
     skills: listToText(y.skillsaves ?? y.skills),
@@ -219,7 +222,7 @@ export function statblockFromYaml(yamlText: string): Statblock {
     immunities: str(y.damage_immunities),
     conditionImmunities: str(y.condition_immunities),
     senses: str(y.senses),
-    languages: str(y.languages) || "—",
+    languages: has("languages") ? str(y.languages) : "—",
     cr: str(y.cr) || "0",
     traits: entryList(y.traits),
     actions: entryList(y.actions),
@@ -288,6 +291,21 @@ export function parseStatNote(text: string): ParsedStatNote {
 
 export function composeStatNote(s: Statblock, body: string): string {
   return "```statblock\n" + statblockToYaml(s) + "\n```\n" + (body ? "\n" + body : "");
+}
+
+/** Replaces the stat block of a note, keeping its description text as is. */
+export function replaceStatNoteBlock(text: string, s: Statblock): string {
+  const m = BLOCK_RE.exec(text);
+  const body = m ? text.slice(m[0].length).replace(/^\n/, "") : text;
+  return composeStatNote(s, body);
+}
+
+/** Replaces the description of a stat block note, keeping the block's YAML untouched. */
+export function replaceStatNoteBody(text: string, body: string): string {
+  const m = BLOCK_RE.exec(text);
+  if (!m) return body;
+  const block = m[0].endsWith("\n") ? m[0] : m[0] + "\n";
+  return block + (body ? "\n" + body : "");
 }
 
 /** Text of a new stat block note. */

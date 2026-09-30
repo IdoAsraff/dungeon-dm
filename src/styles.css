@@ -2704,10 +2704,136 @@ input.combat-hp.invalid {
 .rules-icon {
   width: 20px;
   height: 20px;
-  filter: invert(88%) sepia(12%) saturate(300%) hue-rotate(350deg);
+  /* The icons are white; tint them slightly warm. */
+  filter: sepia(0.25) brightness(0.92);
   flex-shrink: 0;
 }
 .rules-icon.big {
   width: 40px;
   height: 40px;
+}
+.stat-note {
+  max-width: 760px;
+  padding-bottom: 24px;
+}
+.stat-note-desc-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 18px 0 4px;
+}
+.stat-note-desc {
+  min-height: 80px;
+}
+.paste-area {
+  width: 100%;
+  min-height: 320px;
+  font: 12.5px/1.45 ui-monospace, Menlo, monospace;
+  background: #11131a;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.sb-form {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.sbf-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.sbf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 10px;
+  margin: 8px 0;
+}
+.sbf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+.sbf-field.wide {
+  grid-column: span 2;
+}
+.sbf-field input,
+.sbf-field select,
+.sbf-field textarea,
+.sbf-entry input,
+.sbf-entry textarea {
+  font-size: 13px;
+  color: var(--text);
+  width: 100%;
+}
+.sbf-field textarea,
+.sbf-entry textarea {
+  background: #11131a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  resize: vertical;
+  font-family: inherit;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.sbf-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+}
+.sbf-abilities > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.sbf-abilities .sbf-field {
+  align-items: center;
+}
+.sbf-abilities input {
+  text-align: center;
+}
+.sbf-image img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.sbf-list {
+  margin-top: 12px;
+}
+.sbf-list h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--accent-2);
+}
+.sbf-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.sbf-entry-head {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.sbf-add {
+  font-size: 12px;
+  padding: 3px 8px;
 }

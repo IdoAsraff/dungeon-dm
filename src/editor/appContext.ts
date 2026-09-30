@@ -28,7 +28,7 @@ function imageAt(path: string | null): ResolvedImage | null {
 }
 
 /** `![[name]]`: an attachment in notes/ (by path or file name), else assets/. */
-function resolveEmbed(target: string): ResolvedImage | null {
+export function resolveEmbed(target: string): ResolvedImage | null {
   const t = target.trim().toLowerCase();
   const atts = useNotes.getState().attachments;
   const hit =

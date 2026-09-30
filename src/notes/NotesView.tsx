@@ -9,6 +9,8 @@ import { closeTab, createNote, docKey, navigateHistory, nameOf, openDoc, useNote
 import { fieldKey } from "./sources";
 import type { Origin } from "./nav";
 import { SrdDocView } from "../rules/StatblockView";
+import { StatNotePane } from "../rules/StatNotePane";
+import { isStatblockNote } from "../rules/statblock";
 
 export function NotesView() {
   const sidebar = useNotes((s) => s.sidebar);
@@ -141,6 +143,7 @@ function TabBar() {
 export function DocPane({ doc, origin }: { doc: DocRef; origin: Origin }) {
   const [renaming, setRenaming] = useState(false);
   const exists = useNotes((s) => (doc.kind === "note" ? s.files[doc.path] !== undefined : true));
+  const isStat = useNotes((s) => doc.kind === "note" && isStatblockNote(s.files[doc.path] ?? ""));
   if (!exists) return <div className="note-missing">This note no longer exists.</div>;
   return (
     <div className="doc-pane">
@@ -157,7 +160,7 @@ export function DocPane({ doc, origin }: { doc: DocRef; origin: Origin }) {
           </div>
         )}
         {doc.kind === "note" ? (
-          <NoteEditor path={doc.path} origin={origin} />
+          isStat ? <StatNotePane path={doc.path} origin={origin} /> : <NoteEditor path={doc.path} origin={origin} />
         ) : doc.kind === "srd" ? (
           <SrdDocView id={doc.id} />
         ) : (

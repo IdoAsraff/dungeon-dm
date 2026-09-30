@@ -9,6 +9,9 @@ import { checkName, createNote, dirOf, openDoc, useNotes } from "../notes/store"
 import { SRD_MONSTER_LIST, srdMonster } from "./srd";
 import { emptyStatblock, newStatNote, parseStatNote, type Statblock } from "./statblock";
 
+/** Stat block notes that should open in edit mode (just created). */
+export const editOnOpen = new Set<string>();
+
 /** Default folder for new stat blocks. */
 export const STATS_FOLDER = "Stats";
 
@@ -82,6 +85,7 @@ export async function createStatblockNote(folder: string = STATS_FOLDER, sb: Sta
   try {
     const name = freeName(folder, sb.name);
     const path = await createNote(folder, name, newStatNote({ ...sb, name: sb.name === emptyStatblock().name ? name : sb.name }));
+    editOnOpen.add(path);
     openDoc({ kind: "note", path });
     return path;
   } catch (e) {
