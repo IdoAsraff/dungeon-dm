@@ -3,6 +3,7 @@ import { useSession } from "../store/session";
 import { applyHpInput, parseStartingHp } from "../lib/combat";
 import { confirmAsync } from "../components/ui";
 import type { Combatant } from "../types";
+import { useResizableWidth } from "../components/useResizableWidth";
 
 const MIN_KEY = "dm.combat.minimized";
 
@@ -21,6 +22,7 @@ function loadMinimized(): boolean {
 export function CombatPanel() {
   const combat = useSession((s) => s.combat);
   const [minimized, setMinimized] = useState(loadMinimized);
+  const { width, handleProps } = useResizableWidth("dm.combat.width", 270, 220, 640, "right");
   useEffect(() => {
     try {
       localStorage.setItem(MIN_KEY, minimized ? "1" : "0");
@@ -49,7 +51,8 @@ export function CombatPanel() {
   };
 
   return (
-    <div className="combat-panel">
+    <div className="combat-panel" style={{ width }}>
+      <div className="panel-resize right" {...handleProps} />
       <div className="combat-header">
         <span className="combat-title">⚔ Combat</span>
         <span className="grow" />

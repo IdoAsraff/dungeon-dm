@@ -1315,6 +1315,10 @@ button.danger-on:hover:not(:disabled) {
   cursor: ew-resize;
   z-index: 25;
 }
+.panel-resize.right {
+  left: auto;
+  right: 0;
+}
 .panel-resize:hover,
 body.resizing-x .panel-resize {
   background: rgba(217, 168, 74, 0.35);
@@ -1871,6 +1875,7 @@ body.resizing-x {
   pointer-events: auto;
 }
 .combat-panel {
+  position: relative;
   width: 270px;
   max-height: 45vh;
   display: flex;
@@ -2512,4 +2517,46 @@ input.combat-hp.invalid {
 }
 .track-row .track-actions:has(.dropdown-panel) {
   visibility: visible;
+}
+
+/* ---- player brightness (preview panel) ---- */
+.preview-header .brightness-btn {
+  font-size: 11px;
+  padding: 0 5px;
+}
+.preview-header .brightness-btn.on {
+  color: var(--accent-2);
+}
+.brightness-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 5px;
+  background: var(--bg-2);
+  font-size: 12px;
+  color: var(--muted);
+}
+.brightness-row input[type="range"] {
+  flex: 1;
+  min-width: 60px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--accent);
+}
+.brightness-icon {
+  font-size: 14px;
+}
+.brightness-icon.dim {
+  font-size: 10px;
+  opacity: 0.5;
+}
+.brightness-value {
+  width: 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.brightness-row button {
+  padding: 1px 6px;
+  font-size: 11px;
 }
