@@ -229,16 +229,19 @@ function CombatRow({
           {c.side === "enemy" ? "Enemy" : "Party"}
         </button>
       )}
+      <span className={compact ? "combat-name-cell compact" : "combat-name-cell"}>
       <input
-        className="combat-name"
-        dir="auto"
-        value={name}
-        title={compact && statsName ? `${c.name} — ${statsName}` : undefined}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={commitName}
-        onKeyDown={blurOnEnter(() => setName(c.name))}
-      />
+          className="combat-name"
+          dir="auto"
+          size={compact ? undefined : Math.max(4, Math.min(28, name.length + 1))}
+          value={name}
+          title={compact && statsName ? `${c.name} — ${statsName}` : undefined}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={commitName}
+          onKeyDown={blurOnEnter(() => setName(c.name))}
+        />
+      </span>
       {!compact && (
         <button
           className={`combat-stats ${statsName ? "" : "empty"} ${c.stats && !stats ? "missing" : ""}`}
@@ -258,6 +261,7 @@ function CombatRow({
       )}
       <ConditionIcons c={c} max={compact ? 3 : undefined} onClick={(k) => (compact ? onStats?.(c) : inspectCombatant(c.id, k.id))} />
       {!compact && <ApplyCondition c={c} />}
+      {!compact && <span className="grow combat-row-space" />}
       <label className="combat-ac" title="Armor Class" onClick={(e) => e.stopPropagation()}>
         <span>AC</span>
         <input value={ac} inputMode="numeric" onFocus={(e) => e.currentTarget.select()} onChange={(e) => setAc(e.target.value)} onBlur={commitAc} onKeyDown={blurOnEnter(() => setAc(c.ac == null ? "" : String(c.ac)))} />

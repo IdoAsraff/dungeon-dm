@@ -98,8 +98,8 @@ export function CombatView() {
         </div>
         <div className="combat-main-list">
           <CombatList onStats={openStats} />
+          <AddCombatant />
         </div>
-        <AddCombatant />
       </main>
       <aside className="combat-inspector" style={{ width }}>
         <div className="panel-resize left" {...handleProps} />

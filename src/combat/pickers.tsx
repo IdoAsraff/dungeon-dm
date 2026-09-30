@@ -7,6 +7,26 @@ import { CONDITION_ICONS, SRD_CONDITION_LIST, iconUrl } from "../rules/srd";
 import { useNotes } from "../notes/store";
 import type { CombatCondition } from "../types";
 
+const LIST_MAX = 320;
+const MARGIN = 8;
+
+/**
+ * Where the suggestion list goes: below the input, or above it when there is
+ * more room there; its height shrinks to fit, and it never leaves the window.
+ */
+export function listPosition(rect: DOMRect): React.CSSProperties {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const below = vh - rect.bottom - MARGIN - 2;
+  const above = rect.top - MARGIN - 2;
+  const up = below < Math.min(LIST_MAX, 160) && above > below;
+  const maxHeight = Math.max(80, Math.min(LIST_MAX, up ? above : below));
+  const minWidth = Math.min(Math.max(rect.width, 240), vw - 2 * MARGIN);
+  const maxWidth = Math.min(460, vw - 2 * MARGIN);
+  const left = Math.max(MARGIN, Math.min(rect.left, vw - MARGIN - Math.max(minWidth, Math.min(maxWidth, 360))));
+  return up ? { left, bottom: vh - rect.top + 2, maxHeight, minWidth, maxWidth } : { left, top: rect.bottom + 2, maxHeight, minWidth, maxWidth };
+}
+
 interface SuggestProps<T> {
   value: string;
   onChange: (v: string) => void;
@@ -92,7 +112,7 @@ export function SuggestInput<T>({ value, onChange, items, itemKey, render, onPic
       {open &&
         rect &&
         createPortal(
-          <ul className="suggest-list" style={{ left: rect.left, top: rect.bottom + 2, minWidth: Math.max(rect.width, 240) }} onMouseDown={(e) => e.preventDefault()}>
+          <ul className="suggest-list" style={listPosition(rect)} onMouseDown={(e) => e.preventDefault()}>
             {items.map((t, i) => (
               <li
                 key={itemKey(t)}

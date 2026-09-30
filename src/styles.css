@@ -3091,9 +3091,8 @@ input.combat-hp.invalid {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-  max-height: 320px;
   overflow-y: auto;
-  max-width: 460px;
+  box-sizing: border-box;
 }
 .suggest-list li {
   display: flex;
@@ -3255,15 +3254,30 @@ input.combat-hp.invalid {
 .combat-main-list .combat-row.selected {
   outline: 2px solid rgba(240, 196, 106, 0.55);
 }
+.combat-name-cell {
+  display: flex;
+  min-width: 0;
+}
+.combat-name-cell.compact {
+  flex: 1;
+}
+.combat-main-list .combat-name-cell {
+  flex: 0 0 190px;
+}
 .combat-main-list .combat-name {
   font-size: 14px;
+  /* Only as wide as the name: the rest of the row selects the combatant. */
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 260px;
 }
 .combat-main-list input.combat-hp {
   width: 56px;
   font-size: 14px;
 }
-.combat-main .combat-add {
-  padding: 8px 12px;
+.combat-main-list .combat-add {
+  padding: 6px 0 12px;
+  border-top: none;
 }
 .combat-inspector {
   position: relative;
