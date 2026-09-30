@@ -4,9 +4,10 @@ A two-window desktop tool for running a dungeon crawl: a **DM window** with the 
 map, room descriptions and controls, and a **player window** (for a TV or second screen)
 that shows only the rooms the players know about. Everything outside them is blacked out.
 
-The DM window has three views: **Dungeon** (the map), **Notes**, an Obsidian-like
-folder of linked markdown notes that also contains a generated document per level, and
-**Music**, which plays your Spotify playlists.
+The DM window has four views: **Dungeon** (the map), **Notes**, an Obsidian-like
+folder of linked markdown notes that also contains a generated document per level,
+**Music**, which plays your Spotify playlists, and **Combat**, a combat tracker linked to
+5e stat blocks (the free SRD monsters plus your own).
 
 Built with Tauri 2 (Rust), React, TypeScript, Konva (map canvas), CodeMirror 6
 (Obsidian-style live-preview markdown) and Zustand + zundo (undo/redo).
@@ -84,17 +85,9 @@ npm run typecheck
    header opens a **brightness** slider for the player window (20%–150%; dim it for a
    dark scene or brighten a dull TV). The preview shows the same brightness, and it is
    saved with the dungeon.
-8. **Combat tracker.** The ⚔ Combat panel above the preview (also on the Notes view) is
-   a simple list of combatants, one per line, in turn order. Only you see it.
-   - Add: type a name, <kbd>Tab</kbd>, the HP, <kbd>Enter</kbd>, and the cursor is
-     ready for the next one. New combatants are enemies (red).
-   - The **Enemy / Party** tag on each line switches it between red and green.
-   - HP: click it and type `-7` to subtract, `+5` to add, or a number to set it
-     (`=-3` sets a negative number); <kbd>↑</kbd>/<kbd>↓</kbd> change it by 1. At 0 or
-     below the line stays but is faded and struck through.
-   - Drag a line by its ⋮⋮ grip to reorder; ✕ removes it; click a name to rename it.
-   - **Clear enemies** removes the red lines and keeps the party. ▁ minimizes the panel.
-   - The list is saved with the dungeon. Drag the panel's right edge to make it wider.
+8. **Combat.** The full tracker is the **⚔ Combat** tab (<kbd>⌘4</kbd>); a compact copy sits
+   above the preview on the Dungeon and Notes views (click its title to open the tab).
+   Only you see it. See [Combat](#combat) below.
 9. **Windows menu.** Show the player window, turn its fullscreen/kiosk mode on or off,
    and assign each window to a display. These choices are remembered between sessions.
 
@@ -139,7 +132,8 @@ Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd
 
 | Shortcut | Action |
 | --- | --- |
-| <kbd>⌘1</kbd> / <kbd>⌘2</kbd> / <kbd>⌘3</kbd> | Dungeon / Notes / Music |
+| <kbd>⌘1</kbd> / <kbd>⌘2</kbd> / <kbd>⌘3</kbd> / <kbd>⌘4</kbd> | Dungeon / Notes / Music / Combat |
+| <kbd>⌘J</kbd> / <kbd>⌘⇧J</kbd> | Next / previous turn (works everywhere) |
 | <kbd>⌘O</kbd> | Open a note or level document by name |
 | <kbd>⌘⇧F</kbd> | Search everything |
 | <kbd>⌘F</kbd> | Search in the open note |
@@ -147,6 +141,51 @@ Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd
 | <kbd>⌘W</kbd> | Close tab |
 | <kbd>⌘⌥←</kbd> / <kbd>⌘⌥→</kbd> | Back / forward |
 | <kbd>⌘B</kbd> / <kbd>⌘I</kbd> / <kbd>⌘K</kbd> | Bold / italic / link |
+
+### Combat
+
+The **⚔ Combat** tab (<kbd>⌘4</kbd>) has three columns: a **cheat sheet** on the left
+(movement, actions, bonus actions, reactions, conditions, cover, light and vision; « hides
+it), the **combatant list** in the middle, and the **inspector** on the right.
+
+- **Adding:** type a name, <kbd>Tab</kbd>, optionally the **stats** (autocomplete: your own
+  stat blocks first, then the SRD monsters), <kbd>Tab</kbd>, the HP (pre-filled with the
+  stat block's average — change it or just go on), <kbd>Enter</kbd>. `Goblin x4` adds
+  Goblin 1–4. With stats, AC is filled in too; party members can just have AC and HP.
+- **A line:** turn marker ▶ · ⋮⋮ grip (drag to reorder) · Enemy/Party · name · stats ·
+  condition icons · ✦ apply condition · AC · HP / max · ✕. HP turns orange at half and the
+  line fades at 0. Type `-7`, `+5` or a number in HP as before.
+- **Stats:** click a line's stats name to see the stat block in the inspector. Each
+  combatant keeps its own HP, AC and conditions — editing them never changes the stat
+  block. Custom stat blocks have **📝 Open note ↗** to edit them; SRD ones are read-only.
+- **Conditions:** ✦ (or the inspector's box) — type a condition and <kbd>Enter</kbd>. Add a
+  number for rounds (`frightened 3`) or the exhaustion level (`exhaustion 2`); any other
+  text becomes a custom tag (e.g. *Blessed*); *Concentrating* is built in. Hover an icon for
+  its name, click it for the rules, right-click it to remove it. In the inspector you can
+  change rounds and exhaustion level or remove it.
+- **Turns:** **▶ Start combat** / **⏭ Next turn** (<kbd>⌘J</kbd>, also on the Dungeon view's
+  panel), ⏮ back (<kbd>⌘⇧J</kbd>), ⏹ ends the round count. The list order is the turn order.
+  Timed conditions count down at the end of their creature's turn; when one runs out you
+  get a notice.
+- **Inspector:** HP with **Damage** / **Heal** (temporary HP is used first; healing stops at
+  max HP), AC, max and temp HP, conditions with their rules, a note, and the stat block.
+- **Show enemy:** if a stat block has an image, **🖼 Show enemy** shows it to the players
+  (like a handout). **🖼 Show all enemies** shows every standing enemy's image side by
+  side (once per image) until you hide it.
+- Everything is saved with the dungeon.
+
+**Stat blocks.** A stat block is a note: **＋📜** in the Notes sidebar (or *New stat block*
+on a folder's right-click menu) creates one in `Stats/`, but it can live in any folder.
+It shows as a stat block card; **✎ Edit** opens a form (name, size, type, alignment, AC,
+HP, speed, abilities, saves, skills, senses, languages, CR, image, traits, actions, bonus
+actions, reactions, legendary actions). **📋 Paste** fills it from text copied from
+D&D Beyond or a book (check the result). Below the card is the free-text description. The
+note uses the `statblock` format of Obsidian's Fantasy Statblocks plugin.
+
+**SRD.** The locked **SRD** folder in Notes has the free 5e (2014) rules: 334 monsters and
+the 15 conditions, read-only. `[[Goblin]]` links to them (a note of yours with the same
+name wins). **Make a custom copy** turns an SRD monster into your own editable stat block.
+Content from later books isn't included — paste those stat blocks from your own books.
 
 ### Music and sound effects
 
@@ -195,7 +234,7 @@ A dungeon is a plain folder, easy to read and friendly to git:
 ```
 my-dungeon/
   dungeon.json                    name, level order, player-window state (focus, blackout,
-                                  rotation, compass, brightness), combat list, pinned playlists
+                                  rotation, compass, brightness), combat list and round, pinned playlists
   assets/                         images (backgrounds, images in descriptions)
   notes/                          your notes: markdown files and folders (Obsidian-compatible)
     attachments/                  images pasted into notes
@@ -243,3 +282,14 @@ The first room is already revealed to the players.
 | `src/spotify/*` | Spotify: PKCE login, Web API client, playback/fades/resume store, link parsing, a fake Spotify for tests |
 | `src/music/*` | Music view, search, toolbar mini-player |
 | `src/audio/*` | Synthesized sound effects and what triggers them |
+| `src/rules/*` | 5e stat blocks: format, SRD data, stat block notes, paste parser, views |
+| `src/combat/*` | Combat tab: list, inspector, cheat sheet, autocompletes |
+| `scripts/build-rules-data.mjs` | Regenerates `src/rules/data` and `public/rules-icons` from the open sources |
+
+## Credits
+
+- 5e rules content: *System Reference Document 5.1* by Wizards of the Coast LLC, licensed
+  under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/legalcode), via
+  [5e-bits/5e-database](https://github.com/5e-bits/5e-database) (MIT).
+- Combat cheat sheet: [crobi/dnd5e-quickref](https://github.com/crobi/dnd5e-quickref) (MIT).
+- Icons: [game-icons.net](https://game-icons.net) (CC BY 3.0).
