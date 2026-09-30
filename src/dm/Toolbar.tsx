@@ -271,6 +271,17 @@ function SaveStatus() {
   );
 }
 
+function CombatTab({ on, onClick }: { on: boolean; onClick: () => void }) {
+  const count = useSession((s) => s.combat.length);
+  const round = useSession((s) => s.round);
+  return (
+    <button className={on ? "on" : ""} onClick={onClick} title={`Combat (⌘4)${round ? ` — round ${round}` : ""} · ⌘J next turn`}>
+      ⚔ <span className="vs-label">Combat</span>
+      {count > 0 && <span className="vs-count">{round ? `R${round}` : count}</span>}
+    </button>
+  );
+}
+
 export function Toolbar() {
   const dungeon = useDoc((s) => s.dungeon)!;
   const currentLevelId = useUi((s) => s.currentLevelId);
@@ -299,12 +310,13 @@ export function Toolbar() {
       </Dropdown>
       <div className="view-switch" role="tablist">
         <button className={mainView === "dungeon" ? "on" : ""} onClick={() => setView("dungeon")} title="Map and rooms (⌘1)">
-          🗺 Dungeon
+          🗺 <span className="vs-label">Dungeon</span>
         </button>
         <button className={mainView === "notes" ? "on" : ""} onClick={() => setView("notes")} title="Notes (⌘2) · ⌘O open a note · ⌘⇧F search everything">
-          📝 Notes
+          📝 <span className="vs-label">Notes</span>
         </button>
         <MusicTab on={mainView === "music"} onClick={() => setView("music")} />
+        <CombatTab on={mainView === "combat"} onClick={() => setView("combat")} />
       </div>
 
       {mainView === "dungeon" && (

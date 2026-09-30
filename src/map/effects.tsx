@@ -151,15 +151,16 @@ export function RevealVeils({ rooms, fades }: { rooms: { id: string; polygon: Po
 const HANDOUT_MS = 600;
 
 /** Full-screen handout image that fades in, fades out, and crossfades when it changes. */
-export function HandoutLayer({ url }: { url: string | null }) {
-  const [layers, setLayers] = useState<{ url: string; key: number; leaving: boolean }[]>([]);
+export function HandoutLayer({ urls }: { urls: string[] | null }) {
+  const [layers, setLayers] = useState<{ url: string; urls: string[]; key: number; leaving: boolean }[]>([]);
+  const url = urls?.length ? urls.join("\n") : null;
   const seq = useRef(0);
   useEffect(() => {
     setLayers((ls) => {
       const current = ls.find((l) => !l.leaving);
       if (current?.url === url) return ls;
       const next = ls.map((l) => ({ ...l, leaving: true }));
-      if (url) next.push({ url, key: ++seq.current, leaving: false });
+      if (url) next.push({ url, urls: url.split("\n"), key: ++seq.current, leaving: false });
       return next;
     });
     const t = setTimeout(() => setLayers((ls) => ls.filter((l) => !l.leaving)), HANDOUT_MS + 50);
@@ -168,8 +169,14 @@ export function HandoutLayer({ url }: { url: string | null }) {
   return (
     <>
       {layers.map((l) => (
-        <div key={l.key} className={`player-handout ${l.leaving ? "leaving" : "entering"}`} style={{ animationDuration: `${HANDOUT_MS}ms` }}>
-          <img src={l.url} alt="" />
+        <div
+          key={l.key}
+          className={`player-handout ${l.urls.length > 1 ? "many" : ""} ${l.leaving ? "leaving" : "entering"}`}
+          style={{ animationDuration: `${HANDOUT_MS}ms` }}
+        >
+          {l.urls.map((u, i) => (
+            <img key={i} src={u} alt="" />
+          ))}
         </div>
       ))}
     </>

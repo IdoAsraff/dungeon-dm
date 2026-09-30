@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { backend } from "../lib/backend";
 import { validateName } from "../lib/wikiLinks";
+import { useSession } from "../store/session";
 
 /** What a tab (or the peek panel) shows. */
 /** `srd`: a read-only document from the bundled 5e SRD ("monster:goblin", "condition:prone"). */
@@ -28,7 +29,7 @@ export interface Reveal {
 }
 
 /** The DM window's main views (⌘1 / ⌘2 / ⌘3). */
-export type MainView = "dungeon" | "notes" | "music";
+export type MainView = "dungeon" | "notes" | "music" | "combat";
 
 export const LEVELS_FOLDER = "levels";
 export const ATTACHMENTS_FOLDER = "attachments";
@@ -182,7 +183,7 @@ export async function loadNotes(dir: string) {
       activeTab = tabs[w.activeTab]?.id ?? tabs[0]?.id ?? null;
       expanded = Array.isArray(w.expanded) ? w.expanded : [];
       folds = w.folds && typeof w.folds === "object" ? w.folds : {};
-      mainView = w.mainView === "notes" || w.mainView === "music" ? w.mainView : "dungeon";
+      mainView = ["notes", "music", "combat"].includes(w.mainView) ? w.mainView : "dungeon";
     } catch {
       /* ignore a corrupt workspace file */
     }
@@ -376,6 +377,8 @@ export async function movePath(from: string, to: string) {
   }
   const peek = cur.peek ? remapDoc(cur.peek, from, to) : null;
   patch({ files, folders, attachments, expanded, tabs, folds, peek, indexVersion: cur.indexVersion + 1 });
+  // Combatants linked to a moved stat block follow it.
+  useSession.getState().remapStats(from, to);
 }
 
 /** Moves a note or folder to notes/.trash and closes affected tabs. */

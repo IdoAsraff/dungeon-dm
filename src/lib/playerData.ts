@@ -27,8 +27,8 @@ export interface PlayerData {
   rotation: PlayerRotation;
   compass: boolean;
   brightness: number;
-  /** Image shown full-screen instead of the map. */
-  handout: { url: string } | null;
+  /** Images shown full-screen (side by side) instead of the map. */
+  handout: { urls: string[] } | null;
 }
 
 export const EVENTS = {
@@ -49,7 +49,7 @@ export const EVENTS = {
 
 export function buildPlayerData(
   dungeon: Dungeon | null,
-  session: Session & { viewNonce: number; viewCommand: ViewCommand | null; handout?: string | null },
+  session: Session & { viewNonce: number; viewCommand: ViewCommand | null; handout?: string[] | null },
   resolveUrl: (path: string) => string,
 ): PlayerData {
   const levels: PlayerLevel[] = [];
@@ -80,7 +80,7 @@ export function buildPlayerData(
     rotation: session.rotation,
     compass: session.compass,
     brightness: session.brightness,
-    handout: session.handout ? { url: resolveUrl(session.handout) } : null,
+    handout: session.handout?.length ? { urls: session.handout.map(resolveUrl) } : null,
   };
 }
 

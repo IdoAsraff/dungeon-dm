@@ -15,8 +15,9 @@
  * producing a map of relative path -> file content, which lets the autosaver
  * write only the files that changed.
  */
-import { DEFAULT_SESSION, MAX_BRIGHTNESS, MIN_BRIGHTNESS, type BackgroundImage, type Dungeon, type Level, type PlaylistRef, type Point, type Session } from "../types";
+import { DEFAULT_SESSION, MAX_BRIGHTNESS, MIN_BRIGHTNESS, type BackgroundImage, type Combatant, type Dungeon, type Level, type PlaylistRef, type Point, type Session } from "../types";
 import { toFileRelative, toRootRelative } from "./markdownPaths";
+import { normalizeCombatant } from "./combat";
 
 export const FORMAT_VERSION = 1;
 
@@ -88,6 +89,8 @@ export function serializeDungeon(dungeon: Dungeon, session: Session): FileMap {
       rotation: session.rotation,
       compass: session.compass,
       combat: session.combat,
+      round: session.round,
+      turn: session.turn,
       brightness: session.brightness,
     },
   };
@@ -215,6 +218,7 @@ export function parseDungeon(files: FileMap): ParsedDungeon {
   const focusValid =
     s.focus &&
     levels.some((l) => l.id === s.focus!.levelId && l.rooms.some((r) => r.id === s.focus!.roomId && r.playerKnown));
+  const combat = Array.isArray(s.combat) ? s.combat.map(normalizeCombatant).filter((c): c is Combatant => c !== null) : [];
   const session: Session = {
     ...DEFAULT_SESSION,
     focus: focusValid ? s.focus! : null,
@@ -226,16 +230,9 @@ export function parseDungeon(files: FileMap): ParsedDungeon {
       typeof s.brightness === "number" && Number.isFinite(s.brightness)
         ? Math.max(MIN_BRIGHTNESS, Math.min(MAX_BRIGHTNESS, s.brightness))
         : 1,
-    combat: Array.isArray(s.combat)
-      ? s.combat
-          .filter((c) => c && typeof c.name === "string" && Number.isFinite(Number(c.hp)))
-          .map((c, i) => ({
-            id: typeof c.id === "string" && c.id ? c.id : `c${i}`,
-            name: c.name,
-            hp: Math.round(Number(c.hp)),
-            side: c.side === "party" ? ("party" as const) : ("enemy" as const),
-          }))
-      : [],
+    combat,
+    round: typeof s.round === "number" && s.round > 0 ? Math.floor(s.round) : 0,
+    turn: typeof s.turn === "string" && combat.some((c) => c.id === s.turn) ? s.turn : null,
   };
   const legacyBackground = files["background.md"] !== undefined ? readMd(files, "background.md") : null;
   return { dungeon, session, warnings, legacyBackground };

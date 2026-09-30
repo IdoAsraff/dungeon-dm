@@ -164,7 +164,7 @@ export function PlayerApp() {
         rotation={rotation}
         compass={data?.compass ?? false}
         blackout={blackout}
-        handout={data?.handout?.url ?? null}
+        handout={data?.handout?.urls ?? null}
         interactive
         onWheel={onWheel}
         onDragMove={onDragMove}

@@ -101,7 +101,7 @@ describe("session view commands", () => {
   it("focus, show whole level and rotation issue distinct camera commands", async () => {
     const { useSession } = await import("./session");
     const s = () => useSession.getState();
-    s().setSession({ focus: null, playerLevelId: "L", blackout: false, rotation: 0, compass: false, combat: [], brightness: 1 });
+    s().setSession({ focus: null, playerLevelId: "L", blackout: false, rotation: 0, compass: false, combat: [], round: 0, turn: null, brightness: 1 });
     const n0 = s().viewNonce;
     s().focusRoom({ levelId: "L", roomId: "r1" });
     expect(s().viewCommand).toEqual({ kind: "room", levelId: "L", roomId: "r1" });

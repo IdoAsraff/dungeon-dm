@@ -18,6 +18,8 @@ import { CombatPanel } from "./CombatPanel";
 import { useSfxTriggers } from "../audio/triggers";
 import { usePrefs } from "../lib/prefs";
 import { MusicView, useMusicLifecycle } from "../music/MusicView";
+import { CombatView } from "../combat/CombatView";
+import { advanceTurn } from "../combat/actions";
 import { EditorView } from "@codemirror/view";
 import { openSearchPanel } from "@codemirror/search";
 import { NotesView } from "../notes/NotesView";
@@ -85,6 +87,21 @@ function useUndoKeys() {
   }, []);
 }
 
+/** ⌘J next turn, ⌘⇧J previous turn — everywhere, also while typing. */
+function useTurnKeys() {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== "j") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) useSession.getState().previousTurn();
+      else advanceTurn();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
+}
+
 /** Notes shortcuts (Obsidian-like). */
 function useNotesKeys() {
   useEffect(() => {
@@ -107,6 +124,9 @@ function useNotesKeys() {
       } else if (mod && !e.shiftKey && key === "3") {
         e.preventDefault();
         notes.set({ mainView: "music" });
+      } else if (mod && !e.shiftKey && key === "4") {
+        e.preventDefault();
+        notes.set({ mainView: "combat" });
       } else if (notes.mainView === "notes" && mod && !e.shiftKey && key === "w" && notes.activeTab) {
         e.preventDefault();
         closeTab(notes.activeTab);
@@ -174,6 +194,7 @@ export function DmApp() {
   usePlayerSync();
   useUndoKeys();
   useNotesKeys();
+  useTurnKeys();
   useSelectionGuard();
   useSfxTriggers();
   useMusicLifecycle();
@@ -236,6 +257,11 @@ export function DmApp() {
           <CombatPanel />
         </div>
       </div>
+      {mainView === "combat" && (
+        <div className="combat-host">
+          <CombatView />
+        </div>
+      )}
       {mainView === "music" && (
         <div className="music-host">
           <MusicView />

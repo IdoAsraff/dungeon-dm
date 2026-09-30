@@ -89,12 +89,34 @@ export interface Focus {
   roomId: string;
 }
 
+/** A condition on a combatant: an SRD condition id ("prone"), "concentrating", or "custom". */
+export interface CombatCondition {
+  id: string;
+  key: string;
+  /** Name of a custom condition. */
+  label?: string;
+  /** Exhaustion level (1–6). */
+  level?: number;
+  /** Rounds left; counts down at the end of the combatant's turn. */
+  rounds?: number | null;
+}
+
 /** One line of the DM's combat tracker (never shown to players). */
 export interface Combatant {
   id: string;
   name: string;
   hp: number;
   side: "enemy" | "party";
+  maxHp?: number | null;
+  tempHp?: number;
+  ac?: number | null;
+  /** Linked stat block: "note:Stats/Goblin.md" or "srd:monster:goblin". */
+  stats?: string | null;
+  /** Name of the linked stat block (shown if it goes missing). */
+  statsName?: string;
+  conditions?: CombatCondition[];
+  /** Free text for this combatant ("has the key"). */
+  note?: string;
 }
 
 /** Rotation of the player window's view, in degrees clockwise. */
@@ -111,6 +133,10 @@ export interface Session {
   compass: boolean;
   /** Combat tracker lines, in turn order. */
   combat: Combatant[];
+  /** Combat round (0 = not started). */
+  round: number;
+  /** Whose turn it is (combatant id). */
+  turn: string | null;
   /** Player window brightness: 1 is normal, lower is dimmer. */
   brightness: number;
 }
@@ -125,6 +151,8 @@ export const DEFAULT_SESSION: Session = {
   rotation: 0,
   compass: false,
   combat: [],
+  round: 0,
+  turn: null,
   brightness: 1,
 };
 

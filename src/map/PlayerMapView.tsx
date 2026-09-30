@@ -85,7 +85,7 @@ export function PlayerMapView({
   compassSize?: number;
   blackout: boolean;
   /** Image shown full-screen over the map. */
-  handout?: string | null;
+  handout?: string[] | null;
   /** Text shown on the black screen (used by the DM preview only). */
   blackoutLabel?: string;
   interactive: boolean;
@@ -137,7 +137,7 @@ export function PlayerMapView({
         </Layer>
       </Stage>
       {compass && level && <Compass rotation={rotation} size={compassSize ?? compassSizeFor(width, height)} />}
-      <HandoutLayer url={handout ?? null} />
+      <HandoutLayer urls={handout ?? null} />
       <div className={`player-blackout ${blackout ? "on" : ""}`}>{blackoutLabel}</div>
       {children}
     </div>

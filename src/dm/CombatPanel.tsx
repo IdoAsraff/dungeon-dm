@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "../store/session";
-import { applyHpInput, parseStartingHp } from "../lib/combat";
-import { confirmAsync } from "../components/ui";
 import type { Combatant } from "../types";
 import { useResizableWidth } from "../components/useResizableWidth";
+import { AddCombatant, CombatList } from "../combat/CombatList";
+import { confirmClearEnemies, TurnControls } from "../combat/CombatView";
+import { inspectCombatant } from "../combat/store";
+import { resolveStats } from "../rules/statNotes";
+import { openDoc, useNotes, type DocRef } from "../notes/store";
 
 const MIN_KEY = "dm.combat.minimized";
 
@@ -15,14 +18,28 @@ function loadMinimized(): boolean {
   }
 }
 
+function openCombatTab(id?: string) {
+  if (id) inspectCombatant(id);
+  useNotes.getState().set({ mainView: "combat" });
+}
+
+/** A combatant's stat block beside the map (peek), or in Notes when on the Notes view. */
+function showStats(c: Combatant) {
+  const r = resolveStats(c.stats);
+  if (!r) return openCombatTab(c.id);
+  const doc: DocRef = r.source === "note" ? { kind: "note", path: r.path! } : { kind: "srd", id: r.key.slice(4) };
+  if (useNotes.getState().mainView === "dungeon") useNotes.getState().set({ peek: doc });
+  else openDoc(doc);
+}
+
 /**
- * The DM's combat tracker: one line per combatant (name → HP), red for
- * enemies and green for the party, in turn order. Never shown to players.
+ * The compact combat tracker on the Dungeon and Notes views: names, condition
+ * icons, AC and HP, in turn order. The full tracker is the Combat tab.
  */
 export function CombatPanel() {
   const combat = useSession((s) => s.combat);
   const [minimized, setMinimized] = useState(loadMinimized);
-  const { width, handleProps } = useResizableWidth("dm.combat.width", 270, 220, 640, "right");
+  const { width, handleProps } = useResizableWidth("dm.combat.width", 300, 240, 640, "right");
   useEffect(() => {
     try {
       localStorage.setItem(MIN_KEY, minimized ? "1" : "0");
@@ -39,241 +56,27 @@ export function CombatPanel() {
     );
   }
 
-  const enemies = combat.filter((c) => c.side === "enemy").length;
-  const clearEnemies = async () => {
-    const ok = await confirmAsync(
-      <>
-        Remove all {enemies} enem{enemies === 1 ? "y" : "ies"} from the combat tracker? Party members stay.
-      </>,
-      { confirmLabel: "Clear enemies", danger: true },
-    );
-    if (ok) useSession.getState().clearEnemies();
-  };
-
+  const enemies = combat.some((c) => c.side === "enemy");
   return (
     <div className="combat-panel" style={{ width }}>
       <div className="panel-resize right" {...handleProps} />
       <div className="combat-header">
-        <span className="combat-title">⚔ Combat</span>
+        <button className="combat-title link" onClick={() => openCombatTab()} title="Open the Combat tab (⌘4)">
+          ⚔ Combat
+        </button>
+        <TurnControls compact />
         <span className="grow" />
-        {enemies > 0 && (
-          <button className="combat-clear" onClick={() => void clearEnemies()} title="Remove every enemy, keep the party">
-            Clear enemies
+        {enemies && (
+          <button className="combat-clear" onClick={() => void confirmClearEnemies()} title="Remove every enemy, keep the party">
+            Clear
           </button>
         )}
         <button className="icon-btn" title="Minimize" onClick={() => setMinimized(true)}>
           ▁
         </button>
       </div>
-      <CombatList combat={combat} />
-      <AddCombatant />
+      <CombatList compact onStats={showStats} />
+      <AddCombatant compact />
     </div>
-  );
-}
-
-function CombatList({ combat }: { combat: Combatant[] }) {
-  const listRef = useRef<HTMLDivElement>(null);
-  const [drag, setDragState] = useState<{ id: string; index: number } | null>(null);
-  const dragRef = useRef(drag);
-  const setDrag = (d: { id: string; index: number } | null) => {
-    dragRef.current = d;
-    setDragState(d);
-  };
-
-  // Drag by the grip: follow the pointer and show where the line will land.
-  useEffect(() => {
-    if (!drag) return;
-    const move = (e: PointerEvent) => {
-      const rows = [...(listRef.current?.querySelectorAll<HTMLElement>(".combat-row") ?? [])];
-      let index = rows.length;
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i].getBoundingClientRect();
-        if (e.clientY < r.top + r.height / 2) {
-          index = i;
-          break;
-        }
-      }
-      const d = dragRef.current;
-      if (d && d.index !== index) setDrag({ ...d, index });
-    };
-    const up = () => {
-      const d = dragRef.current;
-      setDrag(null);
-      if (!d) return;
-      const from = useSession.getState().combat.findIndex((c) => c.id === d.id);
-      // Dropping below its own position: account for the removed line.
-      useSession.getState().moveCombatant(d.id, d.index > from ? d.index - 1 : d.index);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up, { once: true });
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-  }, [drag?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!combat.length) return <div className="combat-empty">No combatants. Add one below.</div>;
-  return (
-    <div className={`combat-list ${drag ? "dragging" : ""}`} ref={listRef}>
-      {combat.map((c, i) => (
-        <div key={c.id}>
-          {drag && drag.index === i && <div className="combat-drop" />}
-          <CombatRow c={c} dragging={drag?.id === c.id} onGrab={() => setDrag({ id: c.id, index: i })} />
-        </div>
-      ))}
-      {drag && drag.index === combat.length && <div className="combat-drop" />}
-    </div>
-  );
-}
-
-function CombatRow({ c, dragging, onGrab }: { c: Combatant; dragging: boolean; onGrab: () => void }) {
-  const update = (patch: Partial<Omit<Combatant, "id">>) => useSession.getState().updateCombatant(c.id, patch);
-  const [name, setName] = useState(c.name);
-  const [hp, setHp] = useState(String(c.hp));
-  useEffect(() => setName(c.name), [c.name]);
-  useEffect(() => setHp(String(c.hp)), [c.hp]);
-
-  const commitHp = () => {
-    const next = applyHpInput(c.hp, hp);
-    if (next === null) setHp(String(c.hp));
-    else {
-      update({ hp: next });
-      setHp(String(next));
-    }
-  };
-  const commitName = () => {
-    const n = name.trim();
-    if (n && n !== c.name) update({ name: n });
-    else setName(c.name);
-  };
-
-  return (
-    <div className={`combat-row ${c.side} ${c.hp <= 0 ? "down" : ""} ${dragging ? "dragged" : ""}`}>
-      <span
-        className="combat-grip"
-        title="Drag to reorder"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onGrab();
-        }}
-      >
-        ⋮⋮
-      </span>
-      <button
-        className="combat-side"
-        onClick={() => update({ side: c.side === "enemy" ? "party" : "enemy" })}
-        title={c.side === "enemy" ? "Enemy — click to make it a party member" : "Party member — click to make it an enemy"}
-      >
-        {c.side === "enemy" ? "Enemy" : "Party"}
-      </button>
-      <input
-        className="combat-name"
-        dir="auto"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={commitName}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") {
-            setName(c.name);
-            e.currentTarget.blur();
-          }
-        }}
-      />
-      <input
-        className="combat-hp"
-        value={hp}
-        inputMode="numeric"
-        title="HP — type -7 to subtract, +5 to add, or a number to set (↑/↓ change by 1)"
-        onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => setHp(e.target.value)}
-        onBlur={commitHp}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") {
-            setHp(String(c.hp));
-            e.currentTarget.blur();
-          }
-          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            e.preventDefault();
-            const next = c.hp + (e.key === "ArrowUp" ? 1 : -1);
-            update({ hp: next });
-            setHp(String(next));
-            requestAnimationFrame(() => e.currentTarget?.select());
-          }
-        }}
-      />
-      <button className="combat-delete" onClick={() => useSession.getState().removeCombatant(c.id)} title="Remove">
-        ✕
-      </button>
-    </div>
-  );
-}
-
-/** Name ⇥ HP ↵ — then ready for the next one. */
-function AddCombatant() {
-  const [name, setName] = useState("");
-  const [hp, setHp] = useState("");
-  const [error, setError] = useState(false);
-  const nameRef = useRef<HTMLInputElement>(null);
-  const hpRef = useRef<HTMLInputElement>(null);
-
-  const add = () => {
-    const n = name.trim();
-    const value = parseStartingHp(hp);
-    if (!n) return nameRef.current?.focus();
-    if (value === null) {
-      setError(true);
-      return hpRef.current?.focus();
-    }
-    useSession.getState().addCombatant(n, value);
-    setName("");
-    setHp("");
-    setError(false);
-    nameRef.current?.focus();
-  };
-
-  return (
-    <form
-      className="combat-add"
-      onSubmit={(e) => {
-        e.preventDefault();
-        add();
-      }}
-    >
-      <input
-        ref={nameRef}
-        dir="auto"
-        placeholder="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            if (name.trim()) hpRef.current?.focus();
-          }
-        }}
-      />
-      <input
-        ref={hpRef}
-        className={`combat-hp ${error ? "invalid" : ""}`}
-        placeholder="HP"
-        inputMode="numeric"
-        value={hp}
-        onChange={(e) => {
-          setHp(e.target.value);
-          setError(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            add();
-          }
-        }}
-      />
-      <button type="submit" title="Add (Enter)">
-        ＋
-      </button>
-    </form>
   );
 }

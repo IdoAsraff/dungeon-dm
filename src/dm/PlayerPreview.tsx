@@ -114,7 +114,7 @@ export function PlayerPreview() {
             compass={data.compass}
             compassSize={compassSizeFor(vp.width, vp.height) * f}
             blackout={data.blackout}
-            handout={data.handout?.url ?? null}
+            handout={data.handout?.urls ?? null}
             blackoutLabel="Players see a black screen"
             interactive={false}
           />

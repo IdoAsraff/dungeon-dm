@@ -14,7 +14,7 @@ export function MusicTab({ on, onClick }: { on: boolean; onClick: () => void }) 
   return (
     <>
       <button className={on ? "on" : ""} onClick={onClick} title={t ? `Music (⌘3)\nNow ${player!.isPlaying ? "playing" : "paused"}: ${t.name} — ${t.artists}` : "Music (⌘3)"}>
-        🎵 {t ? <span className="music-tab-track">{t.name}</span> : "Music"}
+        🎵 {t ? <span className="music-tab-track">{t.name}</span> : <span className="vs-label">Music</span>}
       </button>
       {t && (
         <span className="mini-player" role="group" aria-label="Music controls">
