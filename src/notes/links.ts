@@ -7,6 +7,7 @@ import { roomTitle, type Dungeon, type Level } from "../types";
 import { useDoc } from "../store/doc";
 import { LEVELS_FOLDER, dirOf, docKey, movePath, setNoteContent, useNotes, type DocRef } from "./store";
 import { dungeonTexts, sortedRooms, type FieldRef } from "./sources";
+import { srdDocTitle, srdLinkTargets } from "../rules/srd";
 
 /** File-like name of each level's document (unique, safe for links). */
 export function levelDocNames(dungeon: Dungeon | null): Map<string, string> {
@@ -35,12 +36,14 @@ export function linkIndex(): LinkIndex {
 export function buildIndex(notePaths: string[], dungeon: Dungeon | null): LinkIndex {
   const targets: LinkTarget[] = notePaths.map((p) => ({ id: `note:${p}`, path: p.replace(/\.md$/i, "") }));
   for (const [levelId, name] of levelDocNames(dungeon)) targets.push({ id: `level:${levelId}`, path: `${LEVELS_FOLDER}/${name}` });
+  targets.push(...srdLinkTargets());
   return new LinkIndex(targets);
 }
 
 export function refFromId(id: string): DocRef | null {
   if (id.startsWith("note:")) return { kind: "note", path: id.slice(5) };
   if (id.startsWith("level:")) return { kind: "level", levelId: id.slice(6) };
+  if (id.startsWith("srd:")) return { kind: "srd", id: id.slice(4) };
   return null;
 }
 
@@ -51,6 +54,7 @@ export function resolveLink(target: string): DocRef | null {
 
 export function docTitle(ref: DocRef): string {
   if (ref.kind === "note") return baseName(ref.path);
+  if (ref.kind === "srd") return srdDocTitle(ref.id);
   return levelDocNames(useDoc.getState().dungeon).get(ref.levelId) ?? "Level";
 }
 
@@ -79,6 +83,7 @@ export function headingCompletions(target: string) {
   const ref = resolveLink(target);
   if (!ref) return [];
   if (ref.kind === "note") return noteHeadings(useNotes.getState().files[ref.path] ?? "").map((h) => ({ label: h }));
+  if (ref.kind === "srd") return [];
   const level = useDoc.getState().dungeon?.levels.find((l) => l.id === ref.levelId);
   if (!level) return [];
   return [

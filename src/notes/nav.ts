@@ -1,7 +1,7 @@
 /** Following links: opening notes/level documents, peeking, selecting rooms. */
 import { useDoc } from "../store/doc";
 import { useUi } from "../store/ui";
-import { createNote, dirOf, openDoc, useNotes, type DocRef, type Reveal } from "./store";
+import { createNote, dirOf, docKey, openDoc, useNotes, type DocRef, type Reveal } from "./store";
 import { levelHeadingTarget, resolveLink } from "./links";
 
 /** Where a link was clicked: the dungeon tab, a notes tab, or the peek panel. */
@@ -24,7 +24,7 @@ export function openRef(
       }
     }
     const notes = useNotes.getState();
-    const key = ref.kind === "note" ? `note:${ref.path}` : `level:${ref.levelId}`;
+    const key = docKey(ref);
     notes.set({
       peek: ref,
       reveal: reveal ? { ...notes.reveal, [key]: { ...reveal, nonce: Date.now() + Math.random() } } : notes.reveal,

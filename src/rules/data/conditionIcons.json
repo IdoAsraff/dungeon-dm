@@ -1,0 +1,18 @@
+{
+ "blinded": "one-eyed",
+ "charmed": "smitten",
+ "deafened": "elf-ear",
+ "exhaustion": "sleepy",
+ "frightened": "terror",
+ "grappled": "grab",
+ "incapacitated": "internal-injury",
+ "invisible": "invisible",
+ "paralyzed": "frozen-block",
+ "petrified": "stone-pile",
+ "poisoned": "poison-bottle",
+ "prone": "crawl",
+ "restrained": "manacles",
+ "stunned": "brain-freeze",
+ "unconscious": "coma",
+ "concentrating": "concentration-orb"
+}

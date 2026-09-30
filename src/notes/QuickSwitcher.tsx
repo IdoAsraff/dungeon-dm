@@ -4,6 +4,7 @@ import { useUi } from "../store/ui";
 import { baseName } from "../lib/wikiLinks";
 import { normalizeForSearch } from "./search";
 import { levelDocNames } from "./links";
+import { srdLinkTargets } from "../rules/srd";
 import { LEVELS_FOLDER, createNote, dirOf, openDoc, useNotes, type DocRef } from "./store";
 
 interface Item {
@@ -51,7 +52,8 @@ function QuickSwitcherModal() {
   const items: Item[] = useMemo(() => {
     const notes = Object.keys(files).map((p) => ({ doc: { kind: "note", path: p } as DocRef, name: baseName(p), folder: dirOf(p) }));
     const levels = [...levelDocNames(dungeon)].map(([id, name]) => ({ doc: { kind: "level", levelId: id } as DocRef, name, folder: LEVELS_FOLDER }));
-    return [...levels, ...notes];
+    const srd = srdLinkTargets().map((t) => ({ doc: { kind: "srd", id: t.id.slice(4) } as DocRef, name: baseName(t.path), folder: dirOf(t.path) }));
+    return [...levels, ...notes, ...srd];
   }, [files, dungeon]);
 
   const shown = useMemo(() => {
@@ -106,7 +108,7 @@ function QuickSwitcherModal() {
           {shown.map((it, i) => (
             <li key={`${it.folder}/${it.name}`} className={i === sel ? "sel" : ""} onMouseEnter={() => setSel(i)} onClick={(e) => void choose(i, e.metaKey || e.ctrlKey)}>
               <span dir="auto">
-                {it.doc.kind === "level" ? "🗺 " : ""}
+                {it.doc.kind === "level" ? "🗺 " : it.doc.kind === "srd" ? "📖 " : ""}
                 {it.name}
               </span>
               {it.folder && <span className="quick-folder">{it.folder}</span>}

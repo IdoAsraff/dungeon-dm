@@ -7,7 +7,8 @@ import { backend } from "../lib/backend";
 import { validateName } from "../lib/wikiLinks";
 
 /** What a tab (or the peek panel) shows. */
-export type DocRef = { kind: "note"; path: string } | { kind: "level"; levelId: string };
+/** `srd`: a read-only document from the bundled 5e SRD ("monster:goblin", "condition:prone"). */
+export type DocRef = { kind: "note"; path: string } | { kind: "level"; levelId: string } | { kind: "srd"; id: string };
 
 export interface Tab {
   id: string;
@@ -33,7 +34,7 @@ export const LEVELS_FOLDER = "levels";
 export const ATTACHMENTS_FOLDER = "attachments";
 
 export function docKey(d: DocRef): string {
-  return d.kind === "note" ? `note:${d.path}` : `level:${d.levelId}`;
+  return d.kind === "note" ? `note:${d.path}` : d.kind === "level" ? `level:${d.levelId}` : `srd:${d.id}`;
 }
 
 let tabSeq = 0;
@@ -279,7 +280,7 @@ const join = (folder: string, name: string) => (folder ? `${folder}/${name}` : n
 export function checkName(folder: string, name: string, isFolder: boolean, except?: string): string | null {
   const err = validateName(name);
   if (err) return err;
-  if (!folder && [LEVELS_FOLDER, ".trash"].includes(name.trim().toLowerCase())) return `“${name}” is reserved.`;
+  if (!folder && [LEVELS_FOLDER, ".trash", "srd"].includes(name.trim().toLowerCase())) return `“${name}” is reserved.`;
   const s = get();
   const target = join(folder, isFolder ? name.trim() : `${name.trim()}.md`).toLowerCase();
   const taken = [...Object.keys(s.files), ...s.folders, ...s.attachments].some((p) => p.toLowerCase() === target && p !== except);

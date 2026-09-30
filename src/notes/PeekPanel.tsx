@@ -1,4 +1,4 @@
-import { useNotes, openDoc } from "./store";
+import { docKey, useNotes, openDoc } from "./store";
 import { docTitle } from "./links";
 import { DocPane } from "./NotesView";
 import { useResizableWidth } from "../components/useResizableWidth";
@@ -14,7 +14,7 @@ export function PeekPanel() {
       <div className="panel-resize left" {...handleProps} />
       <div className="peek-header">
         <span className="peek-title" dir="auto">
-          {peek.kind === "level" ? "🗺 " : "📝 "}
+          {peek.kind === "level" ? "🗺 " : peek.kind === "srd" ? "📖 " : "📝 "}
           {docTitle(peek)}
         </span>
         <span className="grow" />
@@ -31,7 +31,7 @@ export function PeekPanel() {
           ✕
         </button>
       </div>
-      <DocPane key={peek.kind === "note" ? peek.path : peek.levelId} doc={peek} origin="peek" />
+      <DocPane key={docKey(peek)} doc={peek} origin="peek" />
     </div>
   );
 }

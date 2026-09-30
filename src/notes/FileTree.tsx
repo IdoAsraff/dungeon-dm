@@ -17,6 +17,7 @@ import {
   type DocRef,
 } from "./store";
 import { levelDocNames, moveWithLinks } from "./links";
+import { SRD_CONDITION_LIST, SRD_FOLDER, SRD_MONSTER_LIST } from "../rules/srd";
 
 interface FolderNode {
   path: string;
@@ -265,6 +266,7 @@ export function FileTree() {
               </span>
             </div>
           ))}
+        <SrdFolder activeKey={activeKey} open={open} />
         {renderFolder(tree, 0)}
         {Object.keys(files).length === 0 && folders.length === 0 && (
           <p className="hint tree-empty">No notes yet. Create one with ＋📝, or right-click here.</p>
@@ -280,6 +282,44 @@ export function FileTree() {
             rename={(p) => setRenaming(p)}
           />
         </div>
+      )}
+    </div>
+  );
+}
+
+/** The bundled 5e SRD: read-only monsters and conditions. */
+function SrdFolder({ activeKey, open }: { activeKey: string | null; open: (doc: DocRef, e: React.MouseEvent) => void }) {
+  const expanded = useNotes((s) => s.expanded);
+  const key = (sub: string) => `/${SRD_FOLDER}${sub}`;
+  const isOpen = (sub: string) => expanded.includes(key(sub));
+  const folder = (sub: string, name: string, depth: number, count?: number) => (
+    <div className="tree-row folder locked" style={{ paddingInlineStart: 8 + depth * 14 }} onClick={() => toggleExpanded(key(sub))}>
+      <span className={`tree-caret ${isOpen(sub) ? "open" : ""}`}>›</span>
+      <span className="tree-name">{name}</span>
+      {count !== undefined && <span className="tree-count">{count}</span>}
+      {depth === 0 && <span className="tree-lock">🔒</span>}
+    </div>
+  );
+  const row = (id: string, name: string) => (
+    <div
+      key={id}
+      className={`tree-row note srd-row ${activeKey === `srd:${id}` ? "active" : ""}`}
+      style={{ paddingInlineStart: 50 }}
+      onClick={(e) => open({ kind: "srd", id }, e)}
+    >
+      <span className="tree-name">{name}</span>
+    </div>
+  );
+  return (
+    <div title="The free 5e rules (SRD 5.1, 2014): monsters and conditions. Read-only — “Make a custom copy” to edit a monster.">
+      {folder("", SRD_FOLDER, 0)}
+      {isOpen("") && (
+        <>
+          {folder("/Conditions", "Conditions", 1, SRD_CONDITION_LIST.length)}
+          {isOpen("/Conditions") && SRD_CONDITION_LIST.map((c) => row(`condition:${c.id}`, c.name))}
+          {folder("/Monsters", "Monsters", 1, SRD_MONSTER_LIST.length)}
+          {isOpen("/Monsters") && SRD_MONSTER_LIST.map((m) => row(`monster:${m.id}`, m.name))}
+        </>
       )}
     </div>
   );

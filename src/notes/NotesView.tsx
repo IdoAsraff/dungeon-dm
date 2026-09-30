@@ -8,6 +8,7 @@ import { backlinksTo, docTitle, type Backlink } from "./links";
 import { closeTab, createNote, docKey, navigateHistory, nameOf, openDoc, useNotes, type DocRef } from "./store";
 import { fieldKey } from "./sources";
 import type { Origin } from "./nav";
+import { SrdDocView } from "../rules/StatblockView";
 
 export function NotesView() {
   const sidebar = useNotes((s) => s.sidebar);
@@ -113,10 +114,10 @@ function TabBar() {
               }
             }}
             onClick={() => useNotes.getState().set({ activeTab: t.id })}
-            title={t.doc.kind === "note" ? t.doc.path : "Level document"}
+            title={t.doc.kind === "note" ? t.doc.path : t.doc.kind === "srd" ? "5e SRD (read-only)" : "Level document"}
           >
             <span className="note-tab-title" dir="auto">
-              {t.doc.kind === "level" ? "🗺 " : ""}
+              {t.doc.kind === "level" ? "🗺 " : t.doc.kind === "srd" ? "📖 " : ""}
               {docTitle(t.doc)}
             </span>
             <button
@@ -155,7 +156,13 @@ export function DocPane({ doc, origin }: { doc: DocRef; origin: Origin }) {
             )}
           </div>
         )}
-        {doc.kind === "note" ? <NoteEditor path={doc.path} origin={origin} /> : <LevelDocEditor levelId={doc.levelId} origin={origin} />}
+        {doc.kind === "note" ? (
+          <NoteEditor path={doc.path} origin={origin} />
+        ) : doc.kind === "srd" ? (
+          <SrdDocView id={doc.id} />
+        ) : (
+          <LevelDocEditor levelId={doc.levelId} origin={origin} />
+        )}
         <Backlinks doc={doc} origin={origin} />
       </div>
     </div>
