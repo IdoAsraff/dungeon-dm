@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DEFAULT_SESSION, type Combatant, type Focus, type Session } from "../types";
+import { DEFAULT_SESSION, MAX_BRIGHTNESS, MIN_BRIGHTNESS, type Combatant, type Focus, type Session } from "../types";
 import { newId } from "../lib/ids";
 
 /** A one-shot instruction for where the player window's camera should go. */
@@ -24,6 +24,7 @@ interface SessionState extends Session {
   /** Toggles 0° / 90° and re-fits the player view to what it was showing. */
   toggleRotation: () => void;
   setCompass: (on: boolean) => void;
+  setBrightness: (brightness: number) => void;
   addCombatant: (name: string, hp: number) => void;
   updateCombatant: (id: string, patch: Partial<Omit<Combatant, "id">>) => void;
   removeCombatant: (id: string) => void;
@@ -70,6 +71,7 @@ export const useSession = create<SessionState>()((set, get) => ({
     set({ rotation: rotation === 0 ? 90 : 0, viewNonce: viewNonce + 1, viewCommand });
   },
   setCompass: (compass) => set({ compass }),
+  setBrightness: (brightness) => set({ brightness: Math.max(MIN_BRIGHTNESS, Math.min(MAX_BRIGHTNESS, brightness)) }),
   addCombatant: (name, hp) =>
     set((s) => ({ combat: [...s.combat, { id: newId("c"), name: name.trim(), hp: Math.round(hp), side: "enemy" }] })),
   updateCombatant: (id, patch) => set((s) => ({ combat: s.combat.map((c) => (c.id === id ? { ...c, ...patch } : c)) })),
@@ -95,5 +97,6 @@ export function persistedSession(s: Session): Session {
     rotation: s.rotation,
     compass: s.compass,
     combat: s.combat,
+    brightness: s.brightness,
   };
 }

@@ -52,7 +52,7 @@ const dungeon: Dungeon = {
     },
   ],
 };
-const session: Session = { ...DEFAULT_SESSION, focus: { levelId: "level-1", roomId: "r-a" }, playerLevelId: "level-1", rotation: 90, compass: true };
+const session: Session = { ...DEFAULT_SESSION, focus: { levelId: "level-1", roomId: "r-a" }, playerLevelId: "level-1", rotation: 90, compass: true, brightness: 0.6 };
 
 describe("markdown path rewriting", () => {
   it("normalizes paths", () => {
@@ -103,6 +103,15 @@ describe("dungeon serialization", () => {
     expect(parseDungeon(files).legacyBackground).toBeNull();
     files["background.md"] = "# Lore\n\n![map](assets/overview.png)\n";
     expect(parseDungeon(files).legacyBackground).toBe("# Lore\n\n![map](assets/overview.png)");
+  });
+
+  it("keeps brightness within range and defaults it for older dungeons", () => {
+    const files = serializeDungeon(dungeon, session);
+    const dj = JSON.parse(files["dungeon.json"]);
+    dj.session.brightness = 9;
+    expect(parseDungeon({ ...files, "dungeon.json": JSON.stringify(dj) }).session.brightness).toBe(1.5);
+    delete dj.session.brightness;
+    expect(parseDungeon({ ...files, "dungeon.json": JSON.stringify(dj) }).session.brightness).toBe(1);
   });
 
   it("drops a focus that points at an unknown room", () => {

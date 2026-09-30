@@ -111,7 +111,12 @@ export interface Session {
   compass: boolean;
   /** Combat tracker lines, in turn order. */
   combat: Combatant[];
+  /** Player window brightness: 1 is normal, lower is dimmer. */
+  brightness: number;
 }
+
+export const MIN_BRIGHTNESS = 0.2;
+export const MAX_BRIGHTNESS = 1.5;
 
 export const DEFAULT_SESSION: Session = {
   focus: null,
@@ -120,6 +125,7 @@ export const DEFAULT_SESSION: Session = {
   rotation: 0,
   compass: false,
   combat: [],
+  brightness: 1,
 };
 
 export function roomTitle(room: Pick<Room, "title" | "number">): string {

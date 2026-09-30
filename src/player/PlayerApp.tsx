@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import type Konva from "konva";
 import { backend } from "../lib/backend";
-import { EVENTS, type PlayerData } from "../lib/playerData";
+import { brightnessFilter, EVENTS, type PlayerData } from "../lib/playerData";
 import type { PlayerViewport } from "../store/ui";
 import type { PlayerRotation } from "../types";
 import { useElementSize, useViewTransform } from "../map/common";
@@ -150,7 +150,11 @@ export function PlayerApp() {
   const levels = data?.levels ?? [];
 
   return (
-    <div className={`player-root ${(kiosk && idle) || blackout ? "hide-cursor" : ""}`} ref={containerRef}>
+    <div
+      className={`player-root ${(kiosk && idle) || blackout ? "hide-cursor" : ""}`}
+      ref={containerRef}
+      style={{ filter: brightnessFilter(data?.brightness) }}
+    >
       <PlayerMapView
         level={level}
         focusRoomId={focusRoomId}

@@ -15,7 +15,7 @@
  * producing a map of relative path -> file content, which lets the autosaver
  * write only the files that changed.
  */
-import { DEFAULT_SESSION, type BackgroundImage, type Dungeon, type Level, type PlaylistRef, type Point, type Session } from "../types";
+import { DEFAULT_SESSION, MAX_BRIGHTNESS, MIN_BRIGHTNESS, type BackgroundImage, type Dungeon, type Level, type PlaylistRef, type Point, type Session } from "../types";
 import { toFileRelative, toRootRelative } from "./markdownPaths";
 
 export const FORMAT_VERSION = 1;
@@ -88,6 +88,7 @@ export function serializeDungeon(dungeon: Dungeon, session: Session): FileMap {
       rotation: session.rotation,
       compass: session.compass,
       combat: session.combat,
+      brightness: session.brightness,
     },
   };
   files["dungeon.json"] = prettyJson(dj);
@@ -221,6 +222,10 @@ export function parseDungeon(files: FileMap): ParsedDungeon {
     blackout: s.blackout === true,
     rotation: s.rotation === 90 ? 90 : 0,
     compass: s.compass === true,
+    brightness:
+      typeof s.brightness === "number" && Number.isFinite(s.brightness)
+        ? Math.max(MIN_BRIGHTNESS, Math.min(MAX_BRIGHTNESS, s.brightness))
+        : 1,
     combat: Array.isArray(s.combat)
       ? s.combat
           .filter((c) => c && typeof c.name === "string" && Number.isFinite(Number(c.hp)))

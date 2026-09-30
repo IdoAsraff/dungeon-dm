@@ -26,6 +26,7 @@ export interface PlayerData {
   blackout: boolean;
   rotation: PlayerRotation;
   compass: boolean;
+  brightness: number;
   /** Image shown full-screen instead of the map. */
   handout: { url: string } | null;
 }
@@ -78,6 +79,12 @@ export function buildPlayerData(
     blackout: session.blackout,
     rotation: session.rotation,
     compass: session.compass,
+    brightness: session.brightness,
     handout: session.handout ? { url: resolveUrl(session.handout) } : null,
   };
+}
+
+/** CSS filter for the player window's brightness (none at 100%). */
+export function brightnessFilter(brightness: number | undefined): string | undefined {
+  return brightness !== undefined && brightness !== 1 ? `brightness(${brightness})` : undefined;
 }

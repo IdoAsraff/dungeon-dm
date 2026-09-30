@@ -14,6 +14,7 @@
     "blackout": false,
     "rotation": 0,
     "compass": false,
-    "combat": []
+    "combat": [],
+    "brightness": 1
   }
 }

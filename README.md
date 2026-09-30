@@ -80,7 +80,10 @@ npm run typecheck
    **Transitions:** newly revealed rooms fade in on the player screen, blackout fades to
    and from black, and handouts fade in, crossfade when you show another, and fade out.
 7. **Player preview.** The bottom-left panel in the DM window mirrors exactly what the
-   player window shows. Drag its right edge to resize it, or ▁ to minimize it.
+   player window shows. Drag its right edge to resize it, or ▁ to minimize it. **☀** in its
+   header opens a **brightness** slider for the player window (20%–150%; dim it for a
+   dark scene or brighten a dull TV). The preview shows the same brightness, and it is
+   saved with the dungeon.
 8. **Combat tracker.** The ⚔ Combat panel above the preview (also on the Notes view) is
    a simple list of combatants, one per line, in turn order. Only you see it.
    - Add: type a name, <kbd>Tab</kbd>, the HP, <kbd>Enter</kbd>, and the cursor is
@@ -91,7 +94,7 @@ npm run typecheck
      below the line stays but is faded and struck through.
    - Drag a line by its ⋮⋮ grip to reorder; ✕ removes it; click a name to rename it.
    - **Clear enemies** removes the red lines and keeps the party. ▁ minimizes the panel.
-   - The list is saved with the dungeon.
+   - The list is saved with the dungeon. Drag the panel's right edge to make it wider.
 9. **Windows menu.** Show the player window, turn its fullscreen/kiosk mode on or off,
    and assign each window to a display. These choices are remembered between sessions.
 
@@ -192,7 +195,7 @@ A dungeon is a plain folder, easy to read and friendly to git:
 ```
 my-dungeon/
   dungeon.json                    name, level order, player-window state (focus, blackout,
-                                  rotation, compass), combat list, pinned playlists
+                                  rotation, compass, brightness), combat list, pinned playlists
   assets/                         images (backgrounds, images in descriptions)
   notes/                          your notes: markdown files and folders (Obsidian-compatible)
     attachments/                  images pasted into notes

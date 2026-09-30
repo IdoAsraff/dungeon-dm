@@ -3,19 +3,27 @@ import { useDoc } from "../store/doc";
 import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { assetUrl, backend } from "../lib/backend";
-import { buildPlayerData } from "../lib/playerData";
+import { brightnessFilter, buildPlayerData } from "../lib/playerData";
+import { MAX_BRIGHTNESS, MIN_BRIGHTNESS } from "../types";
 import { compassSizeFor, PlayerMapView } from "../map/PlayerMapView";
 
 const STORAGE_KEY = "dm.playerPreview";
 
-function loadPrefs(): { width: number; minimized: boolean } {
+interface PreviewPrefs {
+  width: number;
+  minimized: boolean;
+  brightnessOpen: boolean;
+}
+
+function loadPrefs(): PreviewPrefs {
+  const defaults: PreviewPrefs = { width: 320, minimized: false, brightnessOpen: false };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { width: 320, minimized: false, ...JSON.parse(raw) };
+    if (raw) return { ...defaults, ...JSON.parse(raw) };
   } catch {
     /* storage unavailable */
   }
-  return { width: 320, minimized: false };
+  return defaults;
 }
 
 /** A small, resizable mirror of exactly what the player window currently shows. */
@@ -63,6 +71,7 @@ export function PlayerPreview() {
         title="Show player view preview"
       >
         ▣ Player view{data.blackout ? " · BLACKED OUT" : ""}
+        {data.brightness !== 1 ? ` · ☀ ${Math.round(data.brightness * 100)}%` : ""}
       </button>
     );
   }
@@ -81,11 +90,19 @@ export function PlayerPreview() {
         <span>Player view{level ? ` · ${level.name}` : ""}</span>
         {data.blackout && <span className="preview-flag">BLACKED OUT</span>}
         <span className="grow" />
+        <button
+          className={`icon-btn brightness-btn ${prefs.brightnessOpen || data.brightness !== 1 ? "on" : ""}`}
+          title="Player window brightness"
+          onClick={() => setPrefs({ ...prefs, brightnessOpen: !prefs.brightnessOpen })}
+        >
+          ☀{data.brightness !== 1 ? ` ${Math.round(data.brightness * 100)}%` : ""}
+        </button>
         <button className="icon-btn" title="Minimize" onClick={() => setPrefs({ ...prefs, minimized: true })}>
           ▁
         </button>
       </div>
-      <div className="preview-body" style={{ height }}>
+      {prefs.brightnessOpen && <BrightnessRow value={data.brightness} />}
+      <div className="preview-body" style={{ height, filter: brightnessFilter(data.brightness) }}>
         {vp ? (
           <PlayerMapView
             level={level}
@@ -116,6 +133,31 @@ export function PlayerPreview() {
           resizing.current = { startX: e.clientX, startW: prefs.width };
         }}
       />
+    </div>
+  );
+}
+
+/** Slider row for the player window's brightness. */
+function BrightnessRow({ value }: { value: number }) {
+  const set = (v: number) => useSession.getState().setBrightness(v);
+  return (
+    <div className="brightness-row">
+      <span className="brightness-icon dim">☀</span>
+      <input
+        type="range"
+        min={MIN_BRIGHTNESS}
+        max={MAX_BRIGHTNESS}
+        step={0.05}
+        value={value}
+        onChange={(e) => set(Number(e.target.value))}
+        onDoubleClick={() => set(1)}
+        title="Player window brightness · double-click for normal"
+      />
+      <span className="brightness-icon">☀</span>
+      <span className="brightness-value">{Math.round(value * 100)}%</span>
+      <button disabled={value === 1} onClick={() => set(1)} title="Back to normal brightness">
+        Reset
+      </button>
     </div>
   );
 }
