@@ -7,3 +7,8 @@ src-tauri/gen/schemas/
 
 # Per-dungeon workspace (open tabs, folds)
 .dungeon-dm/
+
+# E2E harness output
+tools/e2e/fx/
+tools/e2e/shots/
+tools/e2e/.chrome-profile/

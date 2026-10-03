@@ -1,11 +1,32 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { parseDungeon, type FileMap } from "./serialize";
 
 const EXAMPLES = path.resolve(__dirname, "../../examples");
 
+/**
+ * The committed version of the example (the DM play-tests the sample in the
+ * app, which leaves uncommitted changes); the files on disk without git.
+ */
+function readCommitted(root: string): FileMap | null {
+  try {
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const files: FileMap = {};
+    for (const f of git("ls-files", "--full-name", ".").trim().split("\n")) {
+      const rel = path.relative(path.relative(git("rev-parse", "--show-toplevel").trim(), root), f).split(path.sep).join("/");
+      if (/\.(json|md)$/.test(rel) && !rel.startsWith("notes/")) files[rel] = git("show", `HEAD:${f}`);
+    }
+    return files;
+  } catch {
+    return null;
+  }
+}
+
 function readDungeonDir(root: string): FileMap {
+  const committed = readCommitted(root);
+  if (committed) return committed;
   const files: FileMap = {};
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

@@ -285,6 +285,10 @@ The first room is already revealed to the players.
 | `src/rules/*` | 5e stat blocks: format, SRD data, stat block notes, paste parser, views |
 | `src/combat/*` | Combat tab: list, inspector, cheat sheet, autocompletes |
 | `scripts/build-rules-data.mjs` | Regenerates `src/rules/data` and `public/rules-icons` from the open sources |
+| `tools/e2e/` | Browser test harness: the real UI with a mocked backend, driven by scripts |
+
+Developer documentation (architecture, recipes for common changes, testing) is in
+[`docs/`](docs/); `CLAUDE.md` is the entry point for Claude Code sessions.
 
 ## Credits
 

@@ -1,0 +1,21 @@
+<!doctype html>
+<!--
+  E2E harness page: the DM window and the player window side by side as iframes,
+  sharing a mocked Tauri backend (see frame.ts). Open via the Vite dev server:
+  http://localhost:1420/tools/e2e/index.html[?spotify=connected|connect]
+-->
+<html><head><meta charset="UTF-8"><style>body{margin:0;background:#444}iframe{border:0;display:block}#dm{width:1400px;height:860px}#player{width:960px;height:600px;margin-top:6px}</style></head><body>
+<iframe id="dm"></iframe><iframe id="player"></iframe>
+<script>
+  // Shared state the iframes and drivers read: __fs (the fake dungeon folder), __saved (every
+  // save_files write), __playerData (every DM -> player payload), __calls (every backend command).
+  window.__saved = []; window.__playerData = []; window.__calls = [];
+  window.__spotifyMode = new URLSearchParams(location.search).get("spotify") ?? "connected";
+  // Tauri events: deliver to every window (the real app broadcasts too).
+  window.__bus = (event, payload) => { if (event === "dm:player-data") window.__playerData.push(JSON.stringify(payload)); for (const f of document.querySelectorAll("iframe")) f.contentWindow.__deliver?.(event, payload); };
+  fetch("/tools/e2e/fx/files.json").then((r) => r.json()).then((fx) => {
+    window.__fs = fx;
+    document.getElementById("dm").src = "/tools/e2e/frame.html?label=dm";
+    document.getElementById("player").src = "/tools/e2e/frame.html?label=player";
+  });
+</script></body></html>
