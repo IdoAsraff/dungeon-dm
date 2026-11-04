@@ -6,15 +6,14 @@
   ],
   "playlists": [],
   "session": {
-    "focus": {
-      "levelId": "level-1",
-      "roomId": "entry-hall"
-    },
+    "focus": null,
     "playerLevelId": "level-1",
     "blackout": false,
     "rotation": 0,
     "compass": false,
     "combat": [],
+    "round": 0,
+    "turn": null,
     "brightness": 1
   }
 }
