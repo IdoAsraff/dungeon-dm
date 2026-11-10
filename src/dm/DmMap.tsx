@@ -9,6 +9,7 @@ import {
   focusView,
   freeformToPolygon,
   isValidPolygon,
+  bbox,
   labelPoint,
   rectPolygon,
   round3,
@@ -132,7 +133,7 @@ export function DmMap({ level }: { level: Level }) {
       if (purpose.kind === "room") {
         const room = doc.addRoom(level.id, polygon);
         ui.set({ draw: null, selection: { kind: "room", id: room.id }, focusTitleFor: room.id });
-        ui.showToast(`Room ${room.number} created — type a title, or press Enter to keep “Room ${room.number}”`);
+        ui.showToast(`Room ${room.label} created — type a title, or press Enter to keep “Room ${room.label}”`);
       } else {
         const id = doc.addShape(purpose.kind, level.id, polygon);
         ui.set({ draw: null, selection: { kind: purpose.kind, id } });
@@ -451,21 +452,24 @@ export function DmMap({ level }: { level: Level }) {
             })}
             {level.rooms.map((room) => {
               const lp = labelPoint(room.polygon);
+              // Long labels ("2-17C") shrink to fit narrow rooms, down to 60% of the normal size.
+              const roomWidth = bbox(room.polygon).width * CELL;
+              const fontSize = Math.min(labelSize, Math.max(labelSize * 0.6, roomWidth / (room.label.length * 0.62 + 0.3)));
               return (
                 <Text
                   key={`label-${room.id}`}
                   x={lp.x * CELL}
                   y={lp.y * CELL}
-                  text={String(room.number)}
-                  fontSize={labelSize}
+                  text={room.label}
+                  fontSize={fontSize}
                   fontStyle="bold"
                   fill="#fff"
                   stroke="rgba(0,0,0,0.85)"
                   strokeWidth={3 / view.scale}
                   fillAfterStrokeEnabled
-                  width={labelSize * 4}
-                  offsetX={labelSize * 2}
-                  offsetY={labelSize / 2}
+                  width={fontSize * 12}
+                  offsetX={fontSize * 6}
+                  offsetY={fontSize / 2}
                   align="center"
                   listening={false}
                 />
@@ -645,7 +649,7 @@ function firstLine(md: string): string {
 function hoverLabel(level: Level, ref: EntityRef): string | null {
   if (ref.kind === "room") {
     const room = level.rooms.find((r) => r.id === ref.id);
-    return room ? `${room.number} · ${roomTitle(room)}` : null;
+    return room ? `${room.label} · ${roomTitle(room)}` : null;
   }
   const list = ref.kind === "door" ? level.doors : level.objects;
   const item = list.find((o) => o.id === ref.id);

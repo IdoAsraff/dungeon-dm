@@ -18,17 +18,17 @@ describe("doc store", () => {
     const a = doc().addRoom(level().id, box(0));
     const b = doc().addRoom(level().id, box(3));
     const c = doc().addRoom(level().id, box(6));
-    expect([a.number, b.number, c.number]).toEqual([1, 2, 3]);
+    expect([a.label, b.label, c.label]).toEqual(["1", "2", "3"]);
     doc().deleteRoom(level().id, b.id);
-    expect(doc().addRoom(level().id, box(9)).number).toBe(2);
+    expect(doc().addRoom(level().id, box(9)).label).toBe("2");
   });
 
-  it("refuses duplicate room numbers", () => {
+  it("refuses duplicate room labels and accepts complex ones", () => {
     const a = doc().addRoom(level().id, box(0));
     const b = doc().addRoom(level().id, box(3));
-    expect(doc().setRoomNumber(level().id, b.id, a.number)).toBe(false);
-    expect(doc().setRoomNumber(level().id, b.id, 12)).toBe(true);
-    expect(level().rooms.find((r) => r.id === b.id)!.number).toBe(12);
+    expect(doc().setRoomLabel(level().id, b.id, a.label)).toMatch(/already exists/);
+    expect(doc().setRoomLabel(level().id, b.id, " 2-17C ")).toBeNull();
+    expect(level().rooms.find((r) => r.id === b.id)!.label).toBe("2-17C");
   });
 
   it("undoes and redoes structural changes", () => {

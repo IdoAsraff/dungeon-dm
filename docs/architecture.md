@@ -131,6 +131,13 @@ Shared UI pieces are in `src/components/`: `Modal`, `Dropdown`, `confirmAsync` +
 - Links: `src/lib/wikiLinks.ts` (parse, resolve, rewrite on rename) and `src/notes/links.ts`
   (index, backlinks, completions, moving with link updates). `src/notes/sources.ts` lists every
   non-note text (`FieldRef`) for search and backlinks.
+- **Rooms are identified by a `label`** (string: "12", "2-17C"), unique per level ignoring case.
+  It is drawn on the map, used as the link heading (`[[Level 2#2-17C]]`, resolved by
+  `levelHeadingTarget`) and as the room's file names (`rooms/<label>.dm.md`). Validation,
+  natural sorting and the default label of new rooms are in `src/lib/roomLabels.ts`; always sort
+  rooms with `sortedRooms` / `compareRoomLabels`. Relabeling goes through `useDoc.setRoomLabel`
+  and then `relinkRelabeledRoom` (links by the old label follow). Old files store a numeric
+  `number`, which the parser reads as the label.
 - `useNotes.indexVersion` is bumped when link targets may resolve differently. Editors redraw
   their decorations when it changes.
 

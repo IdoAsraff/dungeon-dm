@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import type { Dungeon, Level } from "../types";
 import { findMatches, globalSearch, normalizeForSearch } from "./search";
 import { composeLevelDoc, fieldTexts, layoutField, levelDocExtensions, setLayout } from "./levelDoc";
-import { buildIndex, levelDocNames, levelHeadingTarget } from "./links";
+import { buildIndex, levelDocNames, levelHeadingTarget, relabelLinks } from "./links";
 import { minimalChange } from "./editors";
 
 const level: Level = {
@@ -16,8 +16,8 @@ const level: Level = {
   dmImage: null,
   playerImage: null,
   rooms: [
-    { id: "b", number: 43, title: "", polygon: [], readAloud: "Blood smell.", dmNotes: "#### Creature\nBalsag the **bugbear**.", playerKnown: true },
-    { id: "a", number: 42, title: "הגן המרכזי", polygon: [], readAloud: "", dmNotes: "Twig blights.", playerKnown: false },
+    { id: "b", label: "43", title: "", polygon: [], readAloud: "Blood smell.", dmNotes: "#### Creature\nBalsag the **bugbear**.", playerKnown: true },
+    { id: "a", label: "42", title: "הגן המרכזי", polygon: [], readAloud: "", dmNotes: "Twig blights.", playerKnown: false },
   ],
   doors: [{ id: "d1", polygon: [], description: "Stuck stone door (DC 15)." }],
   objects: [],
@@ -103,6 +103,22 @@ describe("level documents", () => {
     const idx = buildIndex(["Grove Level.md"], two);
     expect(idx.resolve("levels/Grove Level (2)")?.id).toBe("level:L2");
     expect(idx.resolve("Grove Level")?.id).toBe("note:Grove Level.md"); // shortest path wins
+  });
+
+  it("resolves complex room labels, with or without the title", () => {
+    const l: Level = { ...level, rooms: [...level.rooms, { ...level.rooms[0], id: "c", label: "2-17C", title: "Throne" }, { ...level.rooms[0], id: "d", label: "2-17", title: "" }] };
+    expect(levelHeadingTarget(l, "2-17C")).toEqual({ kind: "room", roomId: "c" });
+    expect(levelHeadingTarget(l, "2-17c · Throne")).toEqual({ kind: "room", roomId: "c" });
+    expect(levelHeadingTarget(l, "2-17 · Room 2-17")).toEqual({ kind: "room", roomId: "d" });
+    expect(levelHeadingTarget(l, "2-1")).toBeNull();
+  });
+
+  it("rewrites links to a relabeled room", () => {
+    const isLevel = (t: string) => t === "Grove Level";
+    const text = "See [[Grove Level#42|the garden]], [[Grove Level#42|42]], [[Grove Level#42 · הגן המרכזי]], [[Grove Level#הגן המרכזי]], [[Grove Level#43]] and [[Other#42]].";
+    expect(relabelLinks(text, isLevel, level, "a", "42", "2-17C")).toBe(
+      "See [[Grove Level#2-17C|the garden]], [[Grove Level#2-17C|2-17C]], [[Grove Level#2-17C · הגן המרכזי]], [[Grove Level#הגן המרכזי]], [[Grove Level#43]] and [[Other#42]].",
+    );
   });
 });
 

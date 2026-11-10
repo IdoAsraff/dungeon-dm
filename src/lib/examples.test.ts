@@ -47,7 +47,7 @@ describe("example dungeons", () => {
     expect(warnings).toEqual([]);
     expect(dungeon.levels).toHaveLength(1);
     const [level] = dungeon.levels;
-    expect(level.rooms.map((r) => r.number)).toEqual([1, 2, 3]);
+    expect(level.rooms.map((r) => r.label)).toEqual(["1", "2", "3"]);
     expect(level.doors).toHaveLength(2);
     expect(level.rooms.every((r) => r.readAloud.length > 0)).toBe(true);
     expect(level.doors.every((d) => d.description.length > 0)).toBe(true);

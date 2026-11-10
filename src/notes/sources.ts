@@ -2,6 +2,7 @@
  * Every piece of searchable/linkable text in a dungeon besides notes: level
  * backgrounds, room read-aloud & DM notes, door and object descriptions.
  */
+import { compareRoomLabels } from "../lib/roomLabels";
 import type { Dungeon, Level } from "../types";
 import { roomTitle } from "../types";
 
@@ -35,7 +36,7 @@ export function fieldKey(f: FieldRef): string {
 }
 
 export function sortedRooms(level: Level) {
-  return [...level.rooms].sort((a, b) => a.number - b.number);
+  return [...level.rooms].sort((a, b) => compareRoomLabels(a.label, b.label));
 }
 
 export function dungeonTexts(dungeon: Dungeon | null): DungeonText[] {
@@ -43,7 +44,7 @@ export function dungeonTexts(dungeon: Dungeon | null): DungeonText[] {
   for (const level of dungeon?.levels ?? []) {
     out.push({ ref: { kind: "level-desc", levelId: level.id }, text: level.description, label: `${level.name} › Background` });
     for (const r of sortedRooms(level)) {
-      const where = `${level.name} › ${r.number} · ${roomTitle(r)}`;
+      const where = `${level.name} › ${r.label} · ${roomTitle(r)}`;
       out.push({ ref: { kind: "room-read", levelId: level.id, roomId: r.id }, text: r.readAloud, label: `${where} › Read-aloud` });
       out.push({ ref: { kind: "room-dm", levelId: level.id, roomId: r.id }, text: r.dmNotes, label: `${where} › DM notes` });
     }

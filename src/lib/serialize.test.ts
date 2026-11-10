@@ -3,7 +3,7 @@ import { DEFAULT_SESSION, roomTitle, type Dungeon, type Session } from "../types
 import { diffFiles, parseDungeon, prettyJson, serializeDungeon, DungeonFormatError } from "./serialize";
 import { normalizePath, toFileRelative, toRootRelative } from "./markdownPaths";
 import { buildPlayerData } from "./playerData";
-import { lowestFreeNumber } from "./ids";
+import { compareRoomLabels, nextRoomLabel, roomLabelError } from "./roomLabels";
 
 const dungeon: Dungeon = {
   name: "Test Crypt",
@@ -21,7 +21,7 @@ const dungeon: Dungeon = {
       rooms: [
         {
           id: "r-a",
-          number: 1,
+          label: "1",
           title: "Entry Hall",
           polygon: [
             { x: 0, y: 0 },
@@ -35,7 +35,7 @@ const dungeon: Dungeon = {
         },
         {
           id: "r-b",
-          number: 2,
+          label: "2-17C",
           title: "",
           polygon: [
             { x: 6, y: 0 },
@@ -82,7 +82,7 @@ describe("dungeon serialization", () => {
         "levels/level-1/doors/d-1.md",
         "levels/level-1/level.json",
         "levels/level-1/rooms/1.read-aloud.md",
-        "levels/level-1/rooms/2.dm.md",
+        "levels/level-1/rooms/2-17C.dm.md",
       ].sort(),
     );
     expect(files["levels/level-1/rooms/1.read-aloud.md"]).toBe("A cold room. ![door](../../../assets/door.png)\n");
@@ -128,14 +128,14 @@ describe("dungeon serialization", () => {
     expect(() => parseDungeon({})).toThrow(DungeonFormatError);
   });
 
-  it("renumbering a room renames its files", () => {
+  it("relabeling a room renames its files", () => {
     const before = serializeDungeon(dungeon, session);
     const renumbered: Dungeon = {
       ...dungeon,
-      levels: [{ ...dungeon.levels[0], rooms: dungeon.levels[0].rooms.map((r) => (r.id === "r-b" ? { ...r, number: 7 } : r)) }],
+      levels: [{ ...dungeon.levels[0], rooms: dungeon.levels[0].rooms.map((r) => (r.id === "r-b" ? { ...r, label: "7" } : r)) }],
     };
     const { writes, deletes } = diffFiles(before, serializeDungeon(renumbered, session));
-    expect(deletes).toEqual(["levels/level-1/rooms/2.dm.md"]);
+    expect(deletes).toEqual(["levels/level-1/rooms/2-17C.dm.md"]);
     expect(Object.keys(writes).sort()).toEqual(["levels/level-1/level.json", "levels/level-1/rooms/7.dm.md"]);
   });
 
@@ -150,10 +150,40 @@ describe("dungeon serialization", () => {
     expect(parsed.session).toEqual(DEFAULT_SESSION);
   });
 
-  it("defaults empty room titles to the room number", () => {
-    expect(roomTitle({ title: "", number: 7 })).toBe("Room 7");
-    expect(roomTitle({ title: "  ", number: 7 })).toBe("Room 7");
-    expect(roomTitle({ title: "הגן המרכזי", number: 42 })).toBe("הגן המרכזי");
+  it("defaults empty room titles to the room label", () => {
+    expect(roomTitle({ title: "", label: "7" })).toBe("Room 7");
+    expect(roomTitle({ title: "  ", label: "2-17C" })).toBe("Room 2-17C");
+    expect(roomTitle({ title: "הגן המרכזי", label: "42" })).toBe("הגן המרכזי");
+  });
+
+  it("reads old numeric room numbers as labels, with their files", () => {
+    const files = serializeDungeon(dungeon, session);
+    const lj = JSON.parse(files["levels/level-1/level.json"]);
+    lj.rooms[0] = { ...lj.rooms[0], number: 12 };
+    delete lj.rooms[0].label;
+    files["levels/level-1/level.json"] = JSON.stringify(lj);
+    files["levels/level-1/rooms/12.read-aloud.md"] = "Old text.";
+    const parsed = parseDungeon(files);
+    expect(parsed.warnings).toEqual([]);
+    expect(parsed.dungeon.levels[0].rooms[0].label).toBe("12");
+    expect(parsed.dungeon.levels[0].rooms[0].readAloud).toBe("Old text.");
+  });
+
+  it("cleans unusable and duplicate room labels when parsing", () => {
+    const files = serializeDungeon(dungeon, session);
+    const lj = JSON.parse(files["levels/level-1/level.json"]);
+    lj.rooms[0].label = "a/b";
+    lj.rooms[1].label = "A-B";
+    files["levels/level-1/level.json"] = JSON.stringify(lj);
+    const parsed = parseDungeon(files);
+    expect(parsed.dungeon.levels[0].rooms.map((r) => r.label)).toEqual(["a-b", "A-B-2"]);
+    expect(parsed.warnings).toHaveLength(2);
+  });
+
+  it("names room files after their labels", () => {
+    const files = serializeDungeon(dungeon, session);
+    expect(Object.keys(files)).toContain("levels/level-1/rooms/1.read-aloud.md");
+    expect(JSON.parse(files["levels/level-1/level.json"]).rooms[1].label).toBe("2-17C");
   });
 
   it("pretty-prints JSON with compact points", () => {
@@ -188,10 +218,24 @@ describe("player data", () => {
   });
 });
 
-describe("ids", () => {
-  it("finds the lowest free room number", () => {
-    expect(lowestFreeNumber([])).toBe(1);
-    expect(lowestFreeNumber([1, 2, 4])).toBe(3);
-    expect(lowestFreeNumber([2, 3])).toBe(1);
+describe("room labels", () => {
+  it("gives new rooms the lowest free whole number", () => {
+    expect(nextRoomLabel([])).toBe("1");
+    expect(nextRoomLabel(["1", "2", "4", "2-17C"])).toBe("3");
+    expect(nextRoomLabel(["2", "3"])).toBe("1");
+  });
+
+  it("validates labels", () => {
+    expect(roomLabelError("2-17C", ["1", "2"])).toBeNull();
+    expect(roomLabelError("  ", [])).toMatch(/Enter a label/);
+    expect(roomLabelError("2-17c", ["2-17C"])).toMatch(/already exists/);
+    expect(roomLabelError("a#b", [])).toMatch(/can't contain/);
+    expect(roomLabelError("x".repeat(17), [])).toMatch(/16 characters/);
+    expect(roomLabelError("חדר א", [])).toBeNull();
+  });
+
+  it("sorts labels naturally", () => {
+    const labels = ["2-17B", "10", "2-9", "2", "2-17A", "2-10", "1"];
+    expect([...labels].sort(compareRoomLabels)).toEqual(["1", "2", "2-9", "2-10", "2-17A", "2-17B", "10"]);
   });
 });

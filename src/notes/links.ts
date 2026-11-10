@@ -2,7 +2,7 @@
  * Link index over notes and level documents: resolving [[links]],
  * completions, backlinks and keeping links intact when things are renamed.
  */
-import { LinkIndex, parseWikiLinks, rewriteLinks, safeFileName, baseName, type LinkTarget } from "../lib/wikiLinks";
+import { LinkIndex, formatWikiLink, parseWikiLinks, rewriteLinks, safeFileName, baseName, type LinkTarget } from "../lib/wikiLinks";
 import { roomTitle, type Dungeon, type Level } from "../types";
 import { useDoc } from "../store/doc";
 import { LEVELS_FOLDER, dirOf, docKey, movePath, setNoteContent, useNotes, type DocRef } from "./store";
@@ -89,19 +89,27 @@ export function headingCompletions(target: string) {
   return [
     { label: "Background" },
     { label: "Rooms" },
-    ...sortedRooms(level).map((r) => ({ label: String(r.number), detail: roomTitle(r) })),
+    ...sortedRooms(level).map((r) => ({ label: r.label, detail: roomTitle(r) })),
   ];
 }
 
-/** Which room (or section) of a level a heading like "42", "Background" or a room title points to. */
+/**
+ * Which room (or section) of a level a heading points to: "Background", "Rooms",
+ * a room label ("42", "2-17C"), a room heading ("2-17C · The Throne Hall") or a room title.
+ */
 export function levelHeadingTarget(level: Level, heading: string | null): { kind: "room"; roomId: string } | { kind: "section"; name: "background" | "rooms" } | null {
   if (!heading) return null;
   const h = heading.trim().toLowerCase();
   if (h === "background") return { kind: "section", name: "background" };
   if (h === "rooms") return { kind: "section", name: "rooms" };
-  const num = /^(\d+)\b/.exec(h);
-  const byNumber = num ? level.rooms.find((r) => r.number === Number(num[1])) : undefined;
-  const room = byNumber ?? level.rooms.find((r) => roomTitle(r).toLowerCase() === h);
+  const byLabel = level.rooms.find((r) => r.label.toLowerCase() === h);
+  // "<label> · <title>" (or a label followed by more words): the longest label that starts the heading.
+  const byPrefix = byLabel
+    ? undefined
+    : level.rooms
+        .filter((r) => h.startsWith(r.label.toLowerCase()) && /^\s|^$/.test(h.slice(r.label.length)))
+        .sort((a, b) => b.label.length - a.label.length)[0];
+  const room = byLabel ?? byPrefix ?? level.rooms.find((r) => roomTitle(r).toLowerCase() === h);
   return room ? { kind: "room", roomId: room.id } : null;
 }
 
@@ -180,4 +188,36 @@ export function relinkRenamedLevel(levelId: string, oldDungeon: Dungeon) {
   if (!target) return;
   const newText = newIndex.linkTextFor(target);
   rewriteEverywhere((text) => rewriteLinks(text, oldIndex, `level:${levelId}`, newText));
+}
+
+/**
+ * Call after a room's label changed: links to the room by its old label
+ * (`[[Level 2#173]]`, `[[Level 2#173 · Throne Hall]]`) now use the new one.
+ * Links by room title still work and are left alone.
+ */
+export function relinkRelabeledRoom(levelId: string, roomId: string, oldLabel: string, newLabel: string) {
+  const dungeon = useDoc.getState().dungeon;
+  const level = dungeon?.levels.find((l) => l.id === levelId);
+  if (!level || oldLabel === newLabel) return;
+  const oldLevel: Level = { ...level, rooms: level.rooms.map((r) => (r.id === roomId ? { ...r, label: oldLabel } : r)) };
+  const index = linkIndex();
+  rewriteEverywhere((text) => relabelLinks(text, (target) => index.resolve(target)?.id === `level:${levelId}`, oldLevel, roomId, oldLabel, newLabel));
+}
+
+/** Rewrites, in `text`, links into `oldLevel` (per `isLevel`) whose heading is the room's old label. Pure; exported for tests. */
+export function relabelLinks(text: string, isLevel: (target: string) => boolean, oldLevel: Level, roomId: string, oldLabel: string, newLabel: string): string {
+  let out = "";
+  let last = 0;
+  for (const l of parseWikiLinks(text)) {
+    if (!l.heading || !isLevel(l.target)) continue;
+    const t = levelHeadingTarget(oldLevel, l.heading);
+    if (t?.kind !== "room" || t.roomId !== roomId) continue;
+    const h = l.heading.trim();
+    if (!h.toLowerCase().startsWith(oldLabel.toLowerCase())) continue; // linked by title
+    // Shown text that is just the old label ("[[Level 2#173|173]]") follows too.
+    const alias = l.alias && l.alias.trim().toLowerCase() === oldLabel.toLowerCase() ? newLabel : l.alias;
+    out += text.slice(last, l.from) + formatWikiLink({ ...l, heading: newLabel + h.slice(oldLabel.length), alias });
+    last = l.to;
+  }
+  return last ? out + text.slice(last) : text;
 }

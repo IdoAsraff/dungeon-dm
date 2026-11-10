@@ -4,7 +4,7 @@
  *   <Level name>
  *   Background        -> level description (editable)
  *   Rooms
- *     <n> · <title>
+ *     <label> · <title>
  *       Read-aloud    -> room read-aloud (editable)
  *       DM notes      -> room DM notes (editable)
  *
@@ -45,8 +45,8 @@ export interface LevelDocLayout {
   signature: string;
 }
 
-export function roomHeading(number: number, title: string): string {
-  return `${number} · ${title}`;
+export function roomHeading(label: string, title: string): string {
+  return `${label} · ${title}`;
 }
 
 export function composeLevelDoc(level: Level, name: string): LevelDocLayout {
@@ -69,13 +69,13 @@ export function composeLevelDoc(level: Level, name: string): LevelDocLayout {
   line("Rooms", 2, "section");
   const rooms = sortedRooms(level);
   for (const r of rooms) {
-    line(roomHeading(r.number, roomTitle(r)), 3, "room", { roomId: r.id, known: r.playerKnown });
+    line(roomHeading(r.label, roomTitle(r)), 3, "room", { roomId: r.id, known: r.playerKnown });
     line("Read-aloud", 4, "sub");
     field(`read:${r.id}`, { kind: "room-read", levelId: level.id, roomId: r.id }, r.readAloud, 4, "What you read to the players…");
     line("DM notes", 4, "sub");
     field(`dm:${r.id}`, { kind: "room-dm", levelId: level.id, roomId: r.id }, r.dmNotes, 4, "Monsters, traps, treasure, secrets…");
   }
-  const signature = JSON.stringify([name, rooms.map((r) => [r.id, r.number, roomTitle(r), r.playerKnown])]);
+  const signature = JSON.stringify([name, rooms.map((r) => [r.id, r.label, roomTitle(r), r.playerKnown])]);
   return { text, fields, locked, signature };
 }
 

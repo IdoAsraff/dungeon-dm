@@ -47,7 +47,7 @@ npm run typecheck
    the Snap selector in the drawing banner; hold <kbd>Alt</kbd> to ignore it). For
    polygons, click to add corners, then close the shape by clicking the first corner,
    double-clicking, or pressing <kbd>Enter</kbd>. Corridors are just rooms. New rooms get
-   the lowest free number, and the title field is ready for typing; press
+   the lowest free number as their label, and the title field is ready for typing; press
    <kbd>Enter</kbd> without a title to keep "Room N".
 5. **Running a room.** Click a room on the map (or in the side list, which shows room
    titles). You get its title (click to edit), its **read-aloud** text and **DM notes**,
@@ -58,7 +58,10 @@ npm run typecheck
    - **Edit shape**: drag corners, click a midpoint to add a corner, double-click a
      corner to remove it, or drag the whole shape
    - **Redraw** and **Delete**
-   - Click the ✎ next to the room number to change it (it must be unique on the level).
+   - Click the ✎ next to the room label to change it. A label can be a number or any
+     short code from your adventure, like `2-17C` or `B3` (up to 16 characters, unique on
+     the level). Links to the room by its old label are updated. Rooms are listed in
+     natural order (2, 2-9, 2-10, 2-17A, 10).
 6. **Player window.** It shows the revealed rooms over the player background image with
    the grid on top. The focused room is shown normally and the other revealed rooms are
    dimmed; with no focused room, everything revealed is shown normally. Players can zoom,
@@ -111,7 +114,7 @@ Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd
   everything under it; folds are remembered.
 - **Links.** Type `[[` to link another note (`[[Note]]`, `[[Note#Heading]]`,
   `[[Note|shown text]]`). Clicking a link opens it, ⌘-click opens it in a new tab, and a
-  link to a note that doesn't exist yet creates it. `[[Level name#42]]` links to room 42.
+  link to a note that doesn't exist yet creates it. `[[Level name#42]]` links to room 42, `[[Level name#2-17C]]` to room 2-17C.
   Links work in room, door and level descriptions too; on the Dungeon view they open the
   note in a side panel (**peek**) without leaving the map, and room links select the room.
   Each note lists its **linked mentions** (backlinks) at the bottom.
@@ -242,18 +245,19 @@ my-dungeon/
   .dungeon-dm/workspace.json      open note tabs and folded headings
   levels/<level-id>/
     level.json                    grid size & scale, background images + calibration,
-                                  room titles, room / door / object polygons,
+                                  room labels and titles, room / door / object polygons,
                                   player-known flags
     description.md                level description
-    rooms/<n>.read-aloud.md       read-aloud text of room <n>
-    rooms/<n>.dm.md               DM notes of room <n>
+    rooms/<label>.read-aloud.md   read-aloud text of the room labeled <label> (e.g. 2-17C)
+    rooms/<label>.dm.md           DM notes of that room
     doors/<door-id>.md            door descriptions
     objects/<object-id>.md        global object descriptions
 ```
 
 Polygons are lists of `[x, y]` points in grid squares. Markdown files reference images
 with paths relative to themselves, so they also display correctly in other markdown
-viewers. Empty descriptions have no file. Level documents are not stored as files; they
+viewers. Empty descriptions have no file. Dungeons saved before room labels stored a
+whole `number` per room; it is read as the label. Level documents are not stored as files; they
 are generated from `levels/`. Dungeons from before notes existed had a single
 `background.md`; opening them moves it to `notes/Background.md`.
 

@@ -149,7 +149,7 @@ describe("turns", () => {
 describe("sound effect triggers", () => {
   it("detects rooms that became known, but not on load", async () => {
     const { newlyRevealed } = await import("../audio/triggers");
-    const room = (id: string, known: boolean) => ({ id, number: 1, title: "", polygon: [], readAloud: "", dmNotes: "", playerKnown: known });
+    const room = (id: string, known: boolean) => ({ id, label: "1", title: "", polygon: [], readAloud: "", dmNotes: "", playerKnown: known });
     const level = (rooms: ReturnType<typeof room>[]) => ({ id: "L", name: "L", width: 1, height: 1, scale: 5, description: "", dmImage: null, playerImage: null, rooms, doors: [], objects: [] });
     const a = { name: "D", levels: [level([room("r1", true), room("r2", false)])], playlists: [] };
     const b = { name: "D", levels: [level([room("r1", true), room("r2", true)])], playlists: [] };

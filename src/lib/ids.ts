@@ -8,10 +8,3 @@ export function newId(prefix: string): string {
   return `${prefix}-${s}`;
 }
 
-/** Lowest positive integer not present in `taken`. */
-export function lowestFreeNumber(taken: Iterable<number>): number {
-  const set = new Set(taken);
-  let n = 1;
-  while (set.has(n)) n++;
-  return n;
-}

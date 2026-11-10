@@ -6,8 +6,8 @@
  *   assets/                              images (managed by the backend)
  *   levels/<levelId>/level.json          grid, images, room/door/object geometry
  *   levels/<levelId>/description.md      level description
- *   levels/<levelId>/rooms/<n>.read-aloud.md
- *   levels/<levelId>/rooms/<n>.dm.md
+ *   levels/<levelId>/rooms/<label>.read-aloud.md   (label: "12", "2-17C"...)
+ *   levels/<levelId>/rooms/<label>.dm.md
  *   levels/<levelId>/doors/<doorId>.md
  *   levels/<levelId>/objects/<objectId>.md
  *
@@ -15,7 +15,8 @@
  * producing a map of relative path -> file content, which lets the autosaver
  * write only the files that changed.
  */
-import { DEFAULT_SESSION, MAX_BRIGHTNESS, MIN_BRIGHTNESS, type BackgroundImage, type Combatant, type Dungeon, type Level, type PlaylistRef, type Point, type Session } from "../types";
+import { DEFAULT_SESSION, MAX_BRIGHTNESS, MIN_BRIGHTNESS, type BackgroundImage, type Combatant, type Dungeon, type Level, type PlaylistRef, type Point, type Room, type Session } from "../types";
+import { cleanRoomLabel } from "./roomLabels";
 import { toFileRelative, toRootRelative } from "./markdownPaths";
 import { normalizeCombatant } from "./combat";
 
@@ -41,7 +42,8 @@ interface LevelJson {
   scale: number;
   dmImage: BackgroundImage | null;
   playerImage: BackgroundImage | null;
-  rooms: { id: string; number: number; title?: string; playerKnown: boolean; polygon: JsonPoint[] }[];
+  /** `label` since room labels; older files have only a numeric `number`. */
+  rooms: { id: string; label?: string; number?: number; title?: string; playerKnown: boolean; polygon: JsonPoint[] }[];
   doors: { id: string; polygon: JsonPoint[] }[];
   objects: { id: string; polygon: JsonPoint[] }[];
 }
@@ -51,8 +53,8 @@ const fromJsonPoly = (poly: JsonPoint[] | undefined): Point[] =>
   (poly ?? []).map(([x, y]) => ({ x: Number(x), y: Number(y) }));
 
 export const levelDir = (levelId: string) => `levels/${levelId}`;
-export const roomFile = (levelId: string, n: number, kind: "read-aloud" | "dm") =>
-  `${levelDir(levelId)}/rooms/${n}.${kind}.md`;
+export const roomFile = (levelId: string, label: string, kind: "read-aloud" | "dm") =>
+  `${levelDir(levelId)}/rooms/${label}.${kind}.md`;
 export const doorFile = (levelId: string, id: string) => `${levelDir(levelId)}/doors/${id}.md`;
 export const objectFile = (levelId: string, id: string) => `${levelDir(levelId)}/objects/${id}.md`;
 
@@ -110,7 +112,7 @@ function serializeLevel(level: Level, files: FileMap) {
     playerImage: level.playerImage,
     rooms: level.rooms.map((r) => ({
       id: r.id,
-      number: r.number,
+      label: r.label,
       title: r.title,
       playerKnown: r.playerKnown,
       polygon: toJsonPoly(r.polygon),
@@ -121,14 +123,37 @@ function serializeLevel(level: Level, files: FileMap) {
   files[`${levelDir(level.id)}/level.json`] = prettyJson(lj);
   putMd(files, `${levelDir(level.id)}/description.md`, level.description);
   for (const r of level.rooms) {
-    putMd(files, roomFile(level.id, r.number, "read-aloud"), r.readAloud);
-    putMd(files, roomFile(level.id, r.number, "dm"), r.dmNotes);
+    putMd(files, roomFile(level.id, r.label, "read-aloud"), r.readAloud);
+    putMd(files, roomFile(level.id, r.label, "dm"), r.dmNotes);
   }
   for (const d of level.doors) putMd(files, doorFile(level.id, d.id), d.description);
   for (const o of level.objects) putMd(files, objectFile(level.id, o.id), o.description);
 }
 
 export class DungeonFormatError extends Error {}
+
+function parseRooms(
+  rooms: LevelJson["rooms"],
+  texts: (label: string) => { readAloud: string; dmNotes: string },
+  warn: (msg: string) => void,
+): Room[] {
+  const taken = new Set<string>();
+  return rooms.map((r) => {
+    const stored = typeof r.label === "string" && r.label.trim() ? r.label : r.number;
+    const { label, changed } = cleanRoomLabel(stored, taken);
+    // Texts are read under the stored name, so a cleaned label still finds its files (saving renames them).
+    const fileLabel = stored !== undefined && stored !== null && String(stored).trim() ? String(stored).trim() : label;
+    if (changed) warn(`room label "${stored ?? ""}" was changed to "${label}".`);
+    return {
+      id: r.id,
+      label,
+      title: typeof r.title === "string" ? r.title : "",
+      playerKnown: !!r.playerKnown,
+      polygon: fromJsonPoly(r.polygon),
+      ...texts(fileLabel),
+    };
+  });
+}
 
 function readMd(files: FileMap, path: string): string {
   const raw = files[path];
@@ -186,15 +211,10 @@ export function parseDungeon(files: FileMap): ParsedDungeon {
       description: readMd(files, `${levelDir(id)}/description.md`),
       dmImage: lj.dmImage ?? null,
       playerImage: lj.playerImage ?? null,
-      rooms: (lj.rooms ?? []).map((r) => ({
-        id: r.id,
-        number: r.number,
-        title: typeof r.title === "string" ? r.title : "",
-        playerKnown: !!r.playerKnown,
-        polygon: fromJsonPoly(r.polygon),
-        readAloud: readMd(files, roomFile(id, r.number, "read-aloud")),
-        dmNotes: readMd(files, roomFile(id, r.number, "dm")),
-      })),
+      rooms: parseRooms(lj.rooms ?? [], (label) => ({
+        readAloud: readMd(files, roomFile(id, label, "read-aloud")),
+        dmNotes: readMd(files, roomFile(id, label, "dm")),
+      }), (msg) => warnings.push(`${path}: ${msg}`)),
       doors: (lj.doors ?? []).map((d) => ({
         id: d.id,
         polygon: fromJsonPoly(d.polygon),

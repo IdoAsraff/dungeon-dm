@@ -7,7 +7,8 @@ import { create } from "zustand";
 import { temporal } from "zundo";
 import { produce, type Draft } from "immer";
 import type { BackgroundImage, Door, Dungeon, EntityKind, GlobalObject, Level, PlaylistRef, Polygon, Room } from "../types";
-import { lowestFreeNumber, newId } from "../lib/ids";
+import { newId } from "../lib/ids";
+import { nextRoomLabel, normalizeRoomLabel, roomLabelError } from "../lib/roomLabels";
 import type { FieldRef } from "../notes/sources";
 
 export interface NewLevelInput {
@@ -38,7 +39,8 @@ export interface DocState {
   addRoom: (levelId: string, polygon: Polygon) => Room;
   updateRoom: (levelId: string, roomId: string, patch: RoomPatch, coalesceKey?: string) => void;
   /** Returns false when the number is invalid or taken by another room on the level. */
-  setRoomNumber: (levelId: string, roomId: string, number: number) => boolean;
+  /** Changes a room's label ("12", "2-17C"); returns why it can't, or null when done. */
+  setRoomLabel: (levelId: string, roomId: string, label: string) => string | null;
   setRoomKnown: (levelId: string, roomId: string, known: boolean) => void;
   deleteRoom: (levelId: string, roomId: string) => void;
 
@@ -129,7 +131,7 @@ export const useDoc = create<DocState>()(
           const level = get().dungeon?.levels.find((l) => l.id === levelId);
           const room: Room = {
             id: newId("room"),
-            number: lowestFreeNumber(level?.rooms.map((r) => r.number) ?? []),
+            label: nextRoomLabel(level?.rooms.map((r) => r.label) ?? []),
             title: "",
             polygon,
             readAloud: "",
@@ -144,15 +146,16 @@ export const useDoc = create<DocState>()(
             const room = findLevel(d, levelId).rooms.find((r) => r.id === roomId);
             if (room) Object.assign(room, patch);
           }, coalesceKey),
-        setRoomNumber: (levelId, roomId, number) => {
+        setRoomLabel: (levelId, roomId, label) => {
           const level = get().dungeon?.levels.find((l) => l.id === levelId);
-          if (!level || !Number.isInteger(number) || number < 0) return false;
-          if (level.rooms.some((r) => r.id !== roomId && r.number === number)) return false;
+          if (!level) return "No such level.";
+          const error = roomLabelError(label, level.rooms.filter((r) => r.id !== roomId).map((r) => r.label));
+          if (error) return error;
           mutate((d) => {
             const room = findLevel(d, levelId).rooms.find((r) => r.id === roomId);
-            if (room) room.number = number;
+            if (room) room.label = normalizeRoomLabel(label);
           });
-          return true;
+          return null;
         },
         setRoomKnown: (levelId, roomId, known) =>
           mutate((d) => {

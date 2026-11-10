@@ -5,8 +5,11 @@ import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { openDoc } from "../notes/store";
+import { relinkRelabeledRoom } from "../notes/links";
 import { useResizableWidth } from "../components/useResizableWidth";
 import { ToolMenu } from "./Toolbar";
+import { MAX_ROOM_LABEL, normalizeRoomLabel } from "../lib/roomLabels";
+import { sortedRooms } from "../notes/sources";
 
 function select(ref: EntityRef | null, zoom = false) {
   const ui = useUi.getState();
@@ -36,17 +39,17 @@ function ShapeButtons({ target }: { target: EntityRef }) {
 
 function RoomNumberEditor({ level, room }: { level: Level; room: Room }) {
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(String(room.number));
+  const [text, setText] = useState(room.label);
   const [error, setError] = useState<string | null>(null);
   if (!editing) {
     return (
       <div className="room-number-row">
-        <span className="room-number">#{room.number}</span>
+        <span className="room-number" dir="auto">{room.label}</span>
         <button
           className="icon-btn"
-          title="Change room number"
+          title="Change the room's label (like 12 or 2-17C)"
           onClick={() => {
-            setText(String(room.number));
+            setText(room.label);
             setError(null);
             setEditing(true);
           }}
@@ -57,19 +60,17 @@ function RoomNumberEditor({ level, room }: { level: Level; room: Room }) {
     );
   }
   const commit = () => {
-    const n = Number(text);
-    if (!Number.isInteger(n) || n < 0) {
-      setError("Enter a whole number.");
-      return;
-    }
-    if (n === room.number) {
+    if (normalizeRoomLabel(text) === room.label) {
       setEditing(false);
       return;
     }
-    if (!useDoc.getState().setRoomNumber(level.id, room.id, n)) {
-      setError(`Room ${n} already exists on this level.`);
+    const oldLabel = room.label;
+    const err = useDoc.getState().setRoomLabel(level.id, room.id, text);
+    if (err) {
+      setError(err);
       return;
     }
+    relinkRelabeledRoom(level.id, room.id, oldLabel, normalizeRoomLabel(text));
     setEditing(false);
   };
   return (
@@ -83,8 +84,10 @@ function RoomNumberEditor({ level, room }: { level: Level; room: Room }) {
       >
         <span>Room</span>
         <input
-          type="number"
           autoFocus
+          dir="auto"
+          maxLength={MAX_ROOM_LABEL}
+          placeholder="12 or 2-17C"
           value={text}
           onChange={(e) => {
             setText(e.target.value);
@@ -104,7 +107,7 @@ function RoomNumberEditor({ level, room }: { level: Level; room: Room }) {
   );
 }
 
-/** Room title; empty means "Room <number>". Grabs focus right after the room is drawn. */
+/** Room title; empty means "Room <label>". Grabs focus right after the room is drawn. */
 function RoomTitleInput({ level, room }: { level: Level; room: Room }) {
   const ref = useRef<HTMLInputElement>(null);
   const focusTitleFor = useUi((s) => s.focusTitleFor);
@@ -119,8 +122,8 @@ function RoomTitleInput({ level, room }: { level: Level; room: Room }) {
       className="room-title-input"
       dir="auto"
       value={room.title}
-      placeholder={`Room ${room.number}`}
-      title="Room title (leave empty for “Room <number>”). Press Enter when done."
+      placeholder={`Room ${room.label}`}
+      title="Room title (leave empty for “Room <label>”). Press Enter when done."
       onChange={(e) => useDoc.getState().updateRoom(level.id, room.id, { title: e.target.value }, `room-title-${room.id}`)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === "Escape") {
@@ -185,7 +188,7 @@ function RoomPanel({ level, room }: { level: Level; room: Room }) {
           ◎ Focus player window
         </button>
         <button
-          onClick={() => openDoc({ kind: "level", levelId: level.id }, { reveal: { heading: String(room.number) } })}
+          onClick={() => openDoc({ kind: "level", levelId: level.id }, { reveal: { heading: room.label } })}
           title="Open this room in the level document (Notes)"
         >
           📝 Level doc
@@ -267,7 +270,7 @@ function firstLine(md: string) {
 
 function LevelOverview({ level }: { level: Level }) {
   const focus = useSession((s) => s.focus);
-  const rooms = [...level.rooms].sort((a, b) => a.number - b.number);
+  const rooms = sortedRooms(level);
   return (
     <div className="panel">
       <h2 className="panel-title">{level.name}</h2>
@@ -278,7 +281,7 @@ function LevelOverview({ level }: { level: Level }) {
         {rooms.map((r) => (
           <li key={r.id}>
             <button onClick={() => select({ kind: "room", id: r.id }, true)}>
-              <span className="num">{r.number}</span>
+              <span className="num" dir="auto">{r.label}</span>
               <span className="desc" dir="auto">
                 {r.title.trim() ? r.title : <span className="muted">{roomTitle(r)}</span>}
               </span>

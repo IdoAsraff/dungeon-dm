@@ -30,9 +30,12 @@ export interface BackgroundImage {
 
 export interface Room {
   id: string;
-  /** Identifies the room within its level. Unique per level. */
-  number: number;
-  /** Optional name; displayed as "Room <number>" when empty (see roomTitle). */
+  /**
+   * Identifies the room within its level, e.g. "12" or "2-17C": shown on the map,
+   * used in links and file names. Unique per level ignoring case (see lib/roomLabels).
+   */
+  label: string;
+  /** Optional name; displayed as "Room <label>" when empty (see roomTitle). */
   title: string;
   polygon: Polygon;
   readAloud: string;
@@ -156,8 +159,8 @@ export const DEFAULT_SESSION: Session = {
   brightness: 1,
 };
 
-export function roomTitle(room: Pick<Room, "title" | "number">): string {
-  return room.title.trim() || `Room ${room.number}`;
+export function roomTitle(room: Pick<Room, "title" | "label">): string {
+  return room.title.trim() || `Room ${room.label}`;
 }
 
 export type EntityKind = "room" | "door" | "object";
