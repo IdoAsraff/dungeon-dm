@@ -105,7 +105,8 @@ Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd
 - **Files.** The sidebar is a folder tree: create notes and folders (＋ buttons,
   <kbd>⌘N</kbd>, or right-click), rename them (double-click, <kbd>F2</kbd>, or click the
   note's title), drag them into folders, and delete them (they go to `notes/.trash`).
-  Renaming or moving a note updates every link to it.
+  Renaming or moving a note updates every link to it. Names in the tree start at the left,
+  Hebrew ones too.
 - **Editing** works like Obsidian's live preview: markdown is rendered as you write and
   the raw syntax only shows where your cursor is. Headings, bold/italic (<kbd>⌘B</kbd>,
   <kbd>⌘I</kbd>), links (<kbd>⌘K</kbd>), lists, checklists (`- [ ]`), quotes, callouts

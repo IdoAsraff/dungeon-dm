@@ -121,7 +121,9 @@ Shared UI pieces are in `src/components/`: `Modal`, `Dropdown`, `confirmAsync` +
   fields), or an **SRD** page (read-only, `src/rules`).
 - **Every markdown text box** in the app (room texts, door/object descriptions, notes) is
   CodeMirror 6 with the same setup (`src/editor/setup.ts`). Live preview decorations are in
-  `livePreview.ts`, heading folding in `folding.ts`, and paste/format commands and `[[`
+  `livePreview.ts`, tables in `tables.ts` (a block widget replaces the table's lines, so it
+  must be a state field, not a view plugin; it shows the raw text while the cursor is in
+  it), heading folding in `folding.ts`, and paste/format commands and `[[`
   autocomplete in `commands.ts`.
 - An editor learns how to resolve links and images and what clicks do through the
   `EditorContext` facet (`src/editor/context.ts`). The implementations are in
