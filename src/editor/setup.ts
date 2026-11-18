@@ -9,6 +9,7 @@ import { autocompletion, closeBrackets, completionKeymap } from "@codemirror/aut
 import { tags as t } from "@lezer/highlight";
 import { editorContext, type EditorContext } from "./context";
 import { lineDirection, linkClicks, livePreview } from "./livePreview";
+import { tablePreview } from "./tables";
 import { headingFolding } from "./folding";
 import { formattingKeymap, imagePaste, wikiLinkCompletion } from "./commands";
 
@@ -44,6 +45,7 @@ export function markdownEditorExtensions({ context, placeholder, extra = [] }: E
     markdown({ base: markdownLanguage, addKeymap: true }),
     syntaxHighlighting(highlight),
     livePreview,
+    tablePreview,
     lineDirection,
     linkClicks,
     headingFolding(),

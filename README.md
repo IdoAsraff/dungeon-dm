@@ -111,7 +111,9 @@ Switch with the **🗺 Dungeon / 📝 Notes** buttons (or <kbd>⌘1</kbd> / <kbd
   <kbd>⌘I</kbd>), links (<kbd>⌘K</kbd>), lists, checklists (`- [ ]`), quotes, callouts
   (`> [!warning] Title`), tables, code, tags (`#npc`) and images. Each line follows its own
   direction, so Hebrew is right-to-left. Click the chevron next to a heading to fold
-  everything under it; folds are remembered.
+  everything under it; folds are remembered. Tables (`| d10 | Encounter |` …) show as real
+  tables; click one to edit its text, and it turns back into a table when the cursor
+  leaves (Hebrew tables run right-to-left).
 - **Links.** Type `[[` to link another note (`[[Note]]`, `[[Note#Heading]]`,
   `[[Note|shown text]]`). Clicking a link opens it, ⌘-click opens it in a new tab, and a
   link to a note that doesn't exist yet creates it. `[[Level name#42]]` links to room 42, `[[Level name#2-17C]]` to room 2-17C.
