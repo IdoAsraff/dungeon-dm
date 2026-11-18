@@ -818,6 +818,32 @@ input[type="checkbox"] {
   font-family: var(--mono);
   font-size: 0.88em;
 }
+.cm-table-widget {
+  padding: 4px 0;
+  cursor: text;
+  overflow-x: auto;
+}
+.cm-table-widget table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.cm-table-widget th,
+.cm-table-widget td {
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  vertical-align: top;
+  text-align: start;
+}
+.cm-table-widget th {
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 600;
+}
+.cm-table-widget .cm-table-short {
+  white-space: nowrap;
+}
+.cm-table-widget tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.025);
+}
 .cm-image {
   position: relative;
   display: inline-block;
@@ -1439,7 +1465,8 @@ body.resizing-x {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  text-align: start;
+  /* Names start at the left like the tree itself, even Hebrew ones (dir="auto" keeps their letters in order). */
+  text-align: left;
 }
 .tree-caret {
   display: inline-block;
