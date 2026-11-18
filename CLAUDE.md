@@ -61,7 +61,8 @@ Rust is installed in `~/.cargo`; the npm scripts add it to PATH themselves.
 - Writes notes partly in Hebrew: any text field must handle RTL (`dir="auto"`).
 - Suggested and **rejected** (don't propose again): music hotkeys, automatic music triggers
   (e.g. music changing when a room is revealed), lowering music during read-aloud,
-  auto-pinning playlists by name prefix. Local sound files: "later".
+  auto-pinning playlists by name prefix, the app rolling dice (e.g. initiative for enemies:
+  the DM rolls real dice and types the results). Local sound files: "later".
 - D&D content: only the free SRD 5.1 (2014) is bundled (CC-BY-4.0, credited in the README);
   everything else comes from stat blocks the user pastes. Don't scrape D&D Beyond or 5etools.
 

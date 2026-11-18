@@ -7,8 +7,8 @@ import { statImagePath } from "../rules/StatNotePane";
 import { srdCondition } from "../rules/srd";
 import type { CombatCondition, Combatant } from "../types";
 
-/** Adds one or more combatants from the add row: "Goblin x4", optional stats, starting HP. */
-export function addFromRow(nameInput: string, stats: StatsOption | null, hp: number): string[] {
+/** Adds one or more combatants from the add row: "Goblin x4", optional stats, starting HP, optional initiative (shared). */
+export function addFromRow(nameInput: string, stats: StatsOption | null, hp: number, initiative: number | null = null): string[] {
   const { name: typed, count } = parseNameCount(nameInput);
   const base = typed || stats?.name || "";
   if (!base) return [];
@@ -20,7 +20,20 @@ export function addFromRow(nameInput: string, stats: StatsOption | null, hp: num
     ...(hp > 0 ? { maxHp: hp } : {}),
     ...(stats ? { stats: stats.key, statsName: stats.name, ac: stats.ac } : {}),
   }));
-  return useSession.getState().addCombatants(list);
+  const ids = useSession.getState().addCombatants(list);
+  if (initiative !== null) useSession.getState().setInitiatives(Object.fromEntries(ids.map((id) => [id, initiative])), dexScore);
+  return ids;
+}
+
+/** Dexterity score from a combatant's stat block, if it has one. */
+export function dexScore(c: Combatant): number | null {
+  const dex = resolveStats(c.stats)?.sb.stats[1];
+  return typeof dex === "number" && Number.isFinite(dex) ? dex : null;
+}
+
+/** Sets one combatant's initiative (null clears it) and moves it to its place. */
+export function setInitiative(id: string, value: number | null) {
+  useSession.getState().setInitiatives({ [id]: value }, dexScore);
 }
 
 /** The image of a combatant's stat block (dungeon-root-relative), if any. */

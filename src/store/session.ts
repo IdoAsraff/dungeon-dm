@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { DEFAULT_SESSION, MAX_BRIGHTNESS, MIN_BRIGHTNESS, type CombatCondition, type Combatant, type Focus, type Session } from "../types";
 import { newId } from "../lib/ids";
-import { nextTurn, previousTurn, type TurnResult } from "../lib/combat";
+import { applyInitiatives, clearInitiatives, nextTurn, previousTurn, type DexLookup, type TurnResult } from "../lib/combat";
 
 export type NewCombatant = Omit<Combatant, "id" | "side"> & { side?: Combatant["side"] };
 
@@ -34,6 +34,8 @@ interface SessionState extends Session {
   removeCombatant: (id: string) => void;
   /** Moves a combatant so it ends up at `index` in the list. */
   moveCombatant: (id: string, index: number) => void;
+  /** Sets initiatives (null clears); each one moves to its place in the turn order. */
+  setInitiatives: (values: Record<string, number | null>, dex?: DexLookup) => void;
   /** Removes every enemy, keeping the party. */
   clearEnemies: () => void;
   addCondition: (combatantId: string, condition: Omit<CombatCondition, "id">) => void;
@@ -42,7 +44,7 @@ interface SessionState extends Session {
   /** Moves the turn marker on; returns what expired. */
   nextTurn: () => TurnResult;
   previousTurn: () => void;
-  /** Ends the round count (the list stays). */
+  /** Ends the round count and clears initiatives for the next fight (the list stays). */
   endCombat: () => void;
   /** Stat blocks moved/renamed in Notes: keep combatant links pointing at them. */
   remapStats: (fromPath: string, toPath: string) => void;
@@ -112,6 +114,7 @@ export const useSession = create<SessionState>()((set, get) => ({
       list.splice(Math.max(0, Math.min(index, list.length)), 0, item);
       return { combat: list };
     }),
+  setInitiatives: (values, dex) => set((s) => ({ combat: applyInitiatives(s.combat, values, dex) })),
   clearEnemies: () =>
     set((s) => {
       const combat = s.combat.filter((c) => c.side === "party");
@@ -137,7 +140,7 @@ export const useSession = create<SessionState>()((set, get) => ({
     return r;
   },
   previousTurn: () => set((s) => previousTurn(s)),
-  endCombat: () => set({ round: 0, turn: null }),
+  endCombat: () => set((s) => ({ round: 0, turn: null, combat: clearInitiatives(s.combat) })),
   remapStats: (fromPath, toPath) =>
     set((s) => {
       const remap = (key: string | null | undefined) => {

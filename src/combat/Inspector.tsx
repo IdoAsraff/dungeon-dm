@@ -12,7 +12,7 @@ import { statImagePath, statImageUrl } from "../rules/StatNotePane";
 import { ConditionText, ConditionView, StatblockView } from "../rules/StatblockView";
 import { srdCondition } from "../rules/srd";
 import type { CombatCondition, Combatant } from "../types";
-import { conditionName, sameImages } from "./actions";
+import { conditionName, sameImages, setInitiative } from "./actions";
 import { ConditionIcon, ConditionInput, StatsInput } from "./pickers";
 import { QuickrefItemView } from "./CheatSheet";
 import { useCombatUi } from "./store";
@@ -27,7 +27,8 @@ export function Inspector() {
       <div className="inspector-empty">
         <p>Click a combatant to see its stats, HP and conditions here.</p>
         <p className="hint">
-          Add combatants below the list: <b>Name</b> ⇥ <b>Stats</b> ⇥ <b>HP</b> ↵. <kbd>⌘J</kbd> next turn · <kbd>⌘⇧J</kbd> previous.
+          Add combatants below the list: <b>Name</b> ⇥ <b>Stats</b> ⇥ <b>HP</b> ⇥ <b>Init</b> ↵. Type initiative in a line's first box (⇥ goes to the
+          next line). <kbd>⌘J</kbd> next turn · <kbd>⌘⇧J</kbd> previous.
         </p>
       </div>
     );
@@ -106,6 +107,7 @@ function HpBox({ c }: { c: Combatant }) {
         </div>
       )}
       <div className="insp-nums">
+        <NumBox label="Init" title="Initiative (the line moves to its place)" value={c.initiative} onCommit={(v) => setInitiative(c.id, v === null ? null : Math.max(-99, Math.min(99, v)))} />
         <NumBox label="AC" value={c.ac} onCommit={(ac) => update({ ac })} />
         <NumBox label="Max HP" value={c.maxHp} onCommit={(maxHp) => update({ maxHp })} />
         <NumBox label="Temp HP" value={c.tempHp || null} placeholder="0" onCommit={(t) => update({ tempHp: t ?? 0 })} />

@@ -120,6 +120,8 @@ export interface Combatant {
   conditions?: CombatCondition[];
   /** Free text for this combatant ("has the key"). */
   note?: string;
+  /** Initiative for the current fight (null/missing = not rolled yet). */
+  initiative?: number | null;
 }
 
 /** Rotation of the player window's view, in degrees clockwise. */

@@ -156,11 +156,18 @@ it), the **combatant list** in the middle, and the **inspector** on the right.
 
 - **Adding:** type a name, <kbd>Tab</kbd>, optionally the **stats** (autocomplete: your own
   stat blocks first, then the SRD monsters), <kbd>Tab</kbd>, the HP (pre-filled with the
-  stat block's average — change it or just go on), <kbd>Enter</kbd>. `Goblin x4` adds
-  Goblin 1–4. With stats, AC is filled in too; party members can just have AC and HP.
-- **A line:** turn marker ▶ · ⋮⋮ grip (drag to reorder) · Enemy/Party · name · stats ·
-  condition icons · ✦ apply condition · AC · HP / max · ✕. HP turns orange at half and the
-  line fades at 0. Type `-7`, `+5` or a number in HP as before.
+  stat block's average — change it or just go on), optionally <kbd>Tab</kbd> and the
+  **initiative**, <kbd>Enter</kbd>. `Goblin x4` adds Goblin 1–4 (sharing the initiative).
+  With stats, AC is filled in too; party members can just have AC and HP.
+- **A line:** turn marker ▶ · ⋮⋮ grip (drag to reorder) · initiative · Enemy/Party · name ·
+  stats · condition icons · ✦ apply condition · AC · HP / max · ✕. HP turns orange at half
+  and the line fades at 0. Type `-7`, `+5` or a number in HP as before.
+- **Initiative:** type a number in a line's first box and the line moves to its place,
+  highest first. <kbd>Tab</kbd> jumps to the next line's box, so you can go round the
+  table: `15` <kbd>Tab</kbd> `4` <kbd>Tab</kbd> `12` <kbd>Enter</kbd>. Ties go to the higher
+  Dex score when both have stat blocks, otherwise the new number goes after the others.
+  Lines without a number stay where they are, and you can still drag any line to change
+  the order by hand. The app never rolls: you roll and type the results.
 - **Stats:** click a line's stats name to see the stat block in the inspector. Each
   combatant keeps its own HP, AC and conditions — editing them never changes the stat
   block. Custom stat blocks have **📝 Open note ↗** to edit them; SRD ones are read-only.
@@ -170,11 +177,13 @@ it), the **combatant list** in the middle, and the **inspector** on the right.
   its name, click it for the rules, right-click it to remove it. In the inspector you can
   change rounds and exhaustion level or remove it.
 - **Turns:** **▶ Start combat** / **⏭ Next turn** (<kbd>⌘J</kbd>, also on the Dungeon view's
-  panel), ⏮ back (<kbd>⌘⇧J</kbd>), ⏹ ends the round count. The list order is the turn order.
+  panel), ⏮ back (<kbd>⌘⇧J</kbd>), ⏹ ends the fight: the round count stops and initiative
+  is cleared for the next one (the list stays). The list order is the turn order.
   Timed conditions count down at the end of their creature's turn; when one runs out you
   get a notice.
 - **Inspector:** HP with **Damage** / **Heal** (temporary HP is used first; healing stops at
-  max HP), AC, max and temp HP, conditions with their rules, a note, and the stat block.
+  max HP), initiative, AC, max and temp HP, conditions with their rules, a note, and the
+  stat block.
 - **Show enemy:** if a stat block has an image, **🖼 Show enemy** shows it to the players
   (like a handout). **🖼 Show all enemies** shows every standing enemy's image side by
   side (once per image) until you hide it.
@@ -240,7 +249,8 @@ A dungeon is a plain folder, easy to read and friendly to git:
 ```
 my-dungeon/
   dungeon.json                    name, level order, player-window state (focus, blackout,
-                                  rotation, compass, brightness), combat list and round, pinned playlists
+                                  rotation, compass, brightness), combat list (with initiative) and round,
+                                  pinned playlists
   assets/                         images (backgrounds, images in descriptions)
   notes/                          your notes: markdown files and folders (Obsidian-compatible)
     attachments/                  images pasted into notes

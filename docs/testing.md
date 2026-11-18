@@ -59,6 +59,12 @@ node tools/e2e/smoke.mjs                    # PASS/FAIL lines, screenshots in to
 Port 1420 is also what `npm run app:dev` uses, so stop one before starting the other.
 Afterwards, stop Vite (`lsof -ti tcp:1420 | xargs kill`).
 
+Chrome defaults to the macOS app path. Elsewhere, set `CHROME` (e.g.
+`CHROME=/usr/bin/google-chrome node tools/e2e/smoke.mjs`); `E2E_URL` changes the Vite address.
+
+Other drivers worth re-running: `initiative.mjs` (combat initiative: typing, Tab round the
+table, the inspector, the compact panel, ⏹ clearing it).
+
 `fx/`, `shots/` and `.chrome-profile/` are gitignored.
 
 ### Write a driver
