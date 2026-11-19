@@ -45,7 +45,7 @@ export function TurnControls({ compact }: { compact?: boolean }) {
         {round > 0 ? (compact ? "⏭" : "⏭ Next turn") : compact ? "▶ Start" : "▶ Start combat"}
       </button>
       {round > 0 && !compact && (
-        <button className="icon-btn" onClick={() => useSession.getState().endCombat()} title="End combat: stop counting rounds (the list stays)">
+        <button className="icon-btn" onClick={() => useSession.getState().endCombat()} title="End combat: stop counting rounds and clear initiative for the next fight (the list stays)">
           ⏹
         </button>
       )}

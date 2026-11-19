@@ -3052,6 +3052,41 @@ input.combat-hp.invalid {
 .combat-ac input:hover {
   border-color: var(--border);
 }
+input.combat-init {
+  width: 34px;
+  flex-shrink: 0;
+  padding: 2px 3px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-2);
+  background: rgba(0, 0, 0, 0.25);
+  border-color: transparent;
+}
+input.combat-init::placeholder {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+}
+input.combat-init:hover {
+  border-color: var(--border);
+}
+.combat-list.compact input.combat-init {
+  width: 26px;
+  font-size: 12px;
+}
+.combat-add input.combat-add-init {
+  width: 44px;
+  text-align: center;
+}
+.combat-add input.combat-add-init.invalid {
+  outline: 1px solid var(--danger);
+}
+.combat-add.compact input.combat-add-init {
+  width: 40px;
+  padding-inline: 4px;
+}
 .combat-hp-wrap {
   display: flex;
   align-items: baseline;
@@ -3395,7 +3430,8 @@ input.combat-hp.invalid {
 }
 .insp-nums {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 .insp-num {
   display: flex;
@@ -3403,9 +3439,10 @@ input.combat-hp.invalid {
   gap: 5px;
   font-size: 12px;
   color: var(--muted);
+  white-space: nowrap;
 }
 .insp-num input {
-  width: 52px;
+  width: 46px;
   text-align: center;
 }
 .insp-section {

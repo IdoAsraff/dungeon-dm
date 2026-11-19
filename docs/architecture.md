@@ -156,9 +156,14 @@ Shared UI pieces are in `src/components/`: `Modal`, `Dropdown`, `confirmAsync` +
 - A combatant links to stats by key: `"note:Stats/Goblin.md"` or `"srd:monster:goblin"`.
   `useSession.remapStats` keeps links working when notes move.
 - Combat data lives in `useSession` (saved). The pure rules (HP input, damage with temp HP,
-  turn order, condition countdown) are in `src/lib/combat.ts` and unit-tested. UI is in
+  turn order, condition countdown, initiative) are in `src/lib/combat.ts` and unit-tested. UI is in
   `src/combat/*` (the tab) and `src/dm/CombatPanel.tsx` (the compact panel; it reuses
   `CombatList`).
+- **The list order is the turn order**; `initiative` is an optional number on each combatant.
+  Setting one (`useSession.setInitiatives`, or `setInitiative` in `src/combat/actions.ts`,
+  which passes the Dex lookup for ties) moves only that line, with
+  `placeByInitiative`. Never re-sort the whole list: the DM's hand-dragged order must survive.
+  `endCombat` clears initiatives.
 
 ## Music and sound
 

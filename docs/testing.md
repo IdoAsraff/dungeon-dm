@@ -67,6 +67,9 @@ Copy `tools/e2e/smoke.mjs`. It ends with a `run(async (h) => { ... })` block, wh
 Chrome, opens the sample dungeon in the DM window, catches errors (an error screenshot is saved
 as `shots/error.png`) and prints console errors from the app at the end.
 
+Other drivers worth re-running: `initiative.mjs` (combat initiative: typing, Tab round the
+table, the inspector, the compact panel, ⏹ clearing it).
+
 Options for `run(body, opts)`:
 
 - **`spotify: "connected"`** (the default) is logged in to the fake Spotify. **`"connect"`**

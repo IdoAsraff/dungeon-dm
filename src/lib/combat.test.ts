@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { applyDamage, applyHpInput, nextTurn, numberedNames, parseNameCount, parseStartingHp, previousTurn, type TurnState } from "./combat";
+import {
+  applyDamage,
+  applyHpInput,
+  applyInitiatives,
+  nextTurn,
+  numberedNames,
+  parseInitiative,
+  parseNameCount,
+  parseStartingHp,
+  previousTurn,
+  type TurnState,
+} from "./combat";
 import { useSession } from "../store/session";
-import { DEFAULT_SESSION } from "../types";
+import { DEFAULT_SESSION, type Combatant } from "../types";
 import { parseDungeon, serializeDungeon } from "./serialize";
 
 describe("combat HP input", () => {
@@ -99,6 +110,82 @@ describe("combat list", () => {
     expect(applyDamage({ hp: 10, tempHp: 5, maxHp: 10 }, 3)).toEqual({ hp: 10, tempHp: 2 });
     expect(applyDamage({ hp: 4, maxHp: 10 }, -20)).toEqual({ hp: 10, tempHp: 0 });
     expect(applyDamage({ hp: 4 }, -20)).toEqual({ hp: 24, tempHp: 0 });
+  });
+});
+
+describe("initiative", () => {
+  type C = { id: string; name?: string; initiative?: number | null; side?: "enemy" | "party"; stats?: string };
+  const make = (list: C[]): Combatant[] => list.map((x) => ({ name: x.id.toUpperCase(), hp: 5, side: "enemy" as const, ...x }));
+  const order = (list: Combatant[]) => list.map((c) => (c.initiative == null ? c.id : `${c.id}${c.initiative}`)).join(" ");
+
+  it("understands typed numbers", () => {
+    expect(["14", " 7 ", "-1", "+3", "−2", "0"].map(parseInitiative)).toEqual([14, 7, -1, 3, -2, 0]);
+    expect(["", "abc", "123", "1.5", "--2"].map(parseInitiative)).toEqual([null, null, null, null, null]);
+  });
+
+  it("moves each line to its place as the numbers are typed", () => {
+    let list = make([{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }]);
+    list = applyInitiatives(list, { a: 5 });
+    expect(order(list)).toBe("a5 b c d"); // the first number goes to the top
+    list = applyInitiatives(list, { b: 18 });
+    expect(order(list)).toBe("b18 a5 c d");
+    list = applyInitiatives(list, { c: 11 });
+    expect(order(list)).toBe("b18 c11 a5 d");
+    list = applyInitiatives(list, { d: 2 });
+    expect(order(list)).toBe("b18 c11 a5 d2");
+    // Retyping one moves it again; the others stay sorted.
+    list = applyInitiatives(list, { b: 3 });
+    expect(order(list)).toBe("c11 a5 b3 d2");
+  });
+
+  it("leaves lines without initiative where they are", () => {
+    const list = make([{ id: "a", initiative: 15 }, { id: "n" }, { id: "b", initiative: 10 }, { id: "x" }]);
+    expect(order(applyInitiatives(list, { x: 12 }))).toBe("a15 n x12 b10");
+    expect(order(applyInitiatives(list, { x: 1 }))).toBe("a15 n b10 x1");
+  });
+
+  it("clearing a number keeps the line in place", () => {
+    const list = applyInitiatives(make([{ id: "a", initiative: 15 }, { id: "b", initiative: 10 }]), { a: null });
+    expect(order(list)).toBe("a b10");
+    expect("initiative" in list[0]).toBe(false); // nothing saved for it
+  });
+
+  it("breaks ties by Dex score when both are known, otherwise after the others", () => {
+    const dex = (c: Combatant) => ({ fast: 16, slow: 8 })[c.id as "fast" | "slow"] ?? null;
+    const list = make([{ id: "slow", initiative: 12 }, { id: "pc", initiative: 12 }, { id: "fast" }]);
+    expect(order(applyInitiatives(list, { fast: 12 }, dex))).toBe("fast12 slow12 pc12");
+    expect(order(applyInitiatives(list, { fast: 12 }))).toBe("slow12 pc12 fast12");
+  });
+
+  it("keeps a group together when they share a number", () => {
+    const list = make([{ id: "pc", initiative: 14 }, { id: "g1" }, { id: "g2" }, { id: "g3" }, { id: "low", initiative: 3 }]);
+    expect(order(applyInitiatives(list, { g1: 14, g2: 14, g3: 14 }))).toBe("pc14 g114 g214 g314 low3");
+  });
+
+  it("is set through the store, saved, and cleared when combat ends", () => {
+    const s = useSession.getState;
+    s().setSession({ ...DEFAULT_SESSION });
+    const [a, b] = s().addCombatants([{ name: "A", hp: 5 }, { name: "B", hp: 5 }]);
+    s().setInitiatives({ [a]: 3, [b]: 17 });
+    expect(s().combat.map((c) => [c.name, c.initiative])).toEqual([["B", 17], ["A", 3]]);
+    s().nextTurn();
+    const back = parseDungeon(serializeDungeon({ name: "D", levels: [], playlists: [] }, s())).session;
+    expect(back.combat.map((c) => c.initiative)).toEqual([17, 3]);
+    s().endCombat();
+    expect(s().combat.map((c) => [c.name, c.initiative])).toEqual([["B", undefined], ["A", undefined]]);
+  });
+
+  it("reads saved values tolerantly", () => {
+    const files = serializeDungeon({ name: "D", levels: [], playlists: [] }, { ...DEFAULT_SESSION });
+    const dj = JSON.parse(files["dungeon.json"]);
+    dj.session.combat = [
+      { id: "a", name: "A", hp: 1, initiative: "abc" },
+      { id: "b", name: "B", hp: 1, initiative: 500 },
+      { id: "c", name: "C", hp: 1, initiative: "7" },
+      { id: "d", name: "D", hp: 1, initiative: null },
+    ];
+    const back = parseDungeon({ ...files, "dungeon.json": JSON.stringify(dj) }).session;
+    expect(back.combat.map((c) => c.initiative)).toEqual([undefined, 99, 7, undefined]);
   });
 });
 

@@ -5,10 +5,10 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "../store/session";
-import { applyHpInput, parseStartingHp } from "../lib/combat";
+import { applyHpInput, parseInitiative, parseStartingHp } from "../lib/combat";
 import { resolveStats, type StatsOption } from "../rules/statNotes";
 import type { CombatCondition, Combatant } from "../types";
-import { addFromRow, conditionName } from "./actions";
+import { addFromRow, conditionName, setInitiative } from "./actions";
 import { ConditionIcon, ConditionInput, StatsInput } from "./pickers";
 import { inspectCombatant, useCombatUi } from "./store";
 
@@ -61,7 +61,16 @@ export function CombatList({ compact, onStats }: { compact?: boolean; onStats?: 
       {combat.map((c, i) => (
         <div key={c.id}>
           {drag && drag.index === i && <div className="combat-drop" />}
-          <CombatRow c={c} compact={compact} isTurn={turn === c.id} dragging={drag?.id === c.id} onGrab={() => setDrag({ id: c.id, index: i })} onStats={onStats} />
+          <CombatRow
+            c={c}
+            compact={compact}
+            isTurn={turn === c.id}
+            dragging={drag?.id === c.id}
+            onGrab={() => setDrag({ id: c.id, index: i })}
+            onStats={onStats}
+            prevId={combat[i - 1]?.id}
+            nextId={combat[i + 1]?.id}
+          />
         </div>
       ))}
       {drag && drag.index === combat.length && <div className="combat-drop" />}
@@ -145,6 +154,60 @@ export function ApplyCondition({ c }: { c: Combatant }) {
   );
 }
 
+const initText = (v: number | null | undefined) => (v == null ? "" : String(v));
+
+/**
+ * The initiative box at the start of a line. Committing a number moves the line
+ * to its place; Tab / ⇧Tab go to the next / previous line's box (as the list was
+ * before the move), so the DM can go round the table.
+ */
+function InitiativeBox({ c, prevId, nextId, compact }: { c: Combatant; prevId?: string; nextId?: string; compact?: boolean }) {
+  const [text, setText] = useState(initText(c.initiative));
+  const cancelled = useRef(false);
+  useEffect(() => setText(initText(c.initiative)), [c.initiative]);
+  const commit = () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    const t = text.trim();
+    const value = t ? parseInitiative(t) : null;
+    if (t && value === null) return setText(initText(c.initiative));
+    if (value !== (c.initiative ?? null)) setInitiative(c.id, value);
+  };
+  return (
+    <input
+      className="combat-init"
+      data-init={c.id}
+      value={text}
+      inputMode="numeric"
+      placeholder={compact ? "–" : "Init"}
+      title="Initiative: type the roll and the line moves to its place. Tab: next line's box."
+      onClick={(e) => e.stopPropagation()}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          cancelled.current = true;
+          setText(initText(c.initiative));
+          e.currentTarget.blur();
+        }
+        if (e.key === "Tab") {
+          const target = e.shiftKey ? prevId : nextId;
+          if (!target) return;
+          e.preventDefault();
+          const list = e.currentTarget.closest(".combat-list");
+          commit();
+          // After the list re-renders in its new order.
+          requestAnimationFrame(() => list?.querySelector<HTMLInputElement>(`[data-init="${target}"]`)?.focus());
+        }
+      }}
+    />
+  );
+}
+
 function CombatRow({
   c,
   compact,
@@ -152,6 +215,8 @@ function CombatRow({
   dragging,
   onGrab,
   onStats,
+  prevId,
+  nextId,
 }: {
   c: Combatant;
   compact?: boolean;
@@ -159,6 +224,8 @@ function CombatRow({
   dragging: boolean;
   onGrab: () => void;
   onStats?: (c: Combatant) => void;
+  prevId?: string;
+  nextId?: string;
 }) {
   const update = (patch: Partial<Omit<Combatant, "id">>) => useSession.getState().updateCombatant(c.id, patch);
   const selected = useCombatUi((s) => !compact && s.inspect?.kind === "combatant" && s.inspect.id === c.id);
@@ -217,6 +284,7 @@ function CombatRow({
       >
         ⋮⋮
       </span>
+      <InitiativeBox c={c} prevId={prevId} nextId={nextId} compact={compact} />
       {!compact && (
         <button
           className="combat-side"
@@ -303,7 +371,7 @@ function CombatRow({
   );
 }
 
-/** Name ⇥ Stats ⇥ HP ↵ — then ready for the next one. "Goblin x4" adds four. */
+/** Name ⇥ Stats ⇥ HP ⇥ Init ↵ — then ready for the next one. "Goblin x4" adds four (sharing the initiative). */
 export function AddCombatant({ compact }: { compact?: boolean }) {
   const [name, setName] = useState("");
   const [statsText, setStatsText] = useState("");
@@ -311,9 +379,12 @@ export function AddCombatant({ compact }: { compact?: boolean }) {
   const [hp, setHp] = useState("");
   const [hpAuto, setHpAuto] = useState(false);
   const [error, setError] = useState(false);
+  const [init, setInit] = useState("");
+  const [initError, setInitError] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const statsRef = useRef<HTMLInputElement>(null);
   const hpRef = useRef<HTMLInputElement>(null);
+  const initRef = useRef<HTMLInputElement>(null);
 
   const pick = (o: StatsOption) => {
     setStats(o);
@@ -335,7 +406,12 @@ export function AddCombatant({ compact }: { compact?: boolean }) {
       setError(true);
       return hpRef.current?.focus();
     }
-    const ids = addFromRow(name, stats, value);
+    const initiative = init.trim() ? parseInitiative(init) : null;
+    if (init.trim() && initiative === null) {
+      setInitError(true);
+      return initRef.current?.focus();
+    }
+    const ids = addFromRow(name, stats, value, initiative);
     if (ids.length && !compact) inspectCombatant(ids[ids.length - 1]);
     setName("");
     setStatsText("");
@@ -343,6 +419,8 @@ export function AddCombatant({ compact }: { compact?: boolean }) {
     setHp("");
     setHpAuto(false);
     setError(false);
+    setInit("");
+    setInitError(false);
     nameRef.current?.focus();
   };
 
@@ -403,6 +481,19 @@ export function AddCombatant({ compact }: { compact?: boolean }) {
             e.preventDefault();
             add();
           }
+        }}
+      />
+      <input
+        ref={initRef}
+        className={`combat-add-init ${initError ? "invalid" : ""}`}
+        placeholder="Init"
+        title="Optional: initiative (the line goes to its place). You can also type it in the line's box later."
+        inputMode="numeric"
+        value={init}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => {
+          setInit(e.target.value);
+          setInitError(false);
         }}
       />
       <button type="submit" title="Add (Enter)">

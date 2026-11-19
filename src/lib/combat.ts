@@ -96,6 +96,69 @@ export function previousTurn(s: TurnState): TurnState {
   return { ...s, turn: s.combat[idx - 1].id };
 }
 
+/** A combatant's Dexterity score when known (from its stat block): breaks initiative ties. */
+export type DexLookup = (c: Combatant) => number | null;
+
+const noDex: DexLookup = () => null;
+
+/** Initiative typed in the tracker: a whole number, maybe negative ("-1", "+3", "14"). Null if not understood. */
+export function parseInitiative(input: string): number | null {
+  const s = input.replace(/\s+/g, "").replace(/[−–]/g, "-");
+  return /^[+-]?\d{1,2}$/.test(s) ? Number(s) : null;
+}
+
+/** `a` acts before `b`: higher initiative, or the same and a higher Dex score (when both are known). */
+function goesBefore(a: Combatant, b: Combatant, dex: DexLookup): boolean {
+  if (a.initiative == null || b.initiative == null) return false;
+  if (a.initiative !== b.initiative) return a.initiative > b.initiative;
+  const da = dex(a);
+  const db = dex(b);
+  return da !== null && db !== null && da > db;
+}
+
+/**
+ * Moves one combatant to its place by initiative: above the first line it goes
+ * before, otherwise right after the last line that has an initiative (the top
+ * when none has). Ties it can't break land after the others. Lines without an
+ * initiative don't move, and neither does anything dragged by hand.
+ */
+export function placeByInitiative(list: Combatant[], id: string, dex: DexLookup = noDex): Combatant[] {
+  const item = list.find((c) => c.id === id);
+  if (!item || item.initiative == null) return list;
+  const rest = list.filter((c) => c.id !== id);
+  let at = rest.findIndex((c) => goesBefore(item, c, dex));
+  if (at === -1) {
+    at = 0;
+    rest.forEach((c, i) => {
+      if (c.initiative != null) at = i + 1;
+    });
+  }
+  return [...rest.slice(0, at), item, ...rest.slice(at)];
+}
+
+function withInitiative(c: Combatant, value: number | null): Combatant {
+  const out: Combatant = { ...c, initiative: value };
+  if (value === null) delete out.initiative;
+  return out;
+}
+
+/** Sets initiatives (null clears) and places each one in list order, so a group stays together. */
+export function applyInitiatives(list: Combatant[], values: Record<string, number | null>, dex: DexLookup = noDex): Combatant[] {
+  let out = list;
+  for (const c of list) {
+    if (!(c.id in values)) continue;
+    const value = values[c.id];
+    out = out.map((x) => (x.id === c.id ? withInitiative(x, value) : x));
+    if (value !== null) out = placeByInitiative(out, c.id, dex);
+  }
+  return out;
+}
+
+/** Every initiative cleared (a new fight), order unchanged. */
+export function clearInitiatives(list: Combatant[]): Combatant[] {
+  return list.some((c) => c.initiative != null) ? list.map((c) => (c.initiative == null ? c : withInitiative(c, null))) : list;
+}
+
 /** Reads combatants saved in dungeon.json, tolerating older files and bad data. */
 export function normalizeCombatant(c: unknown, i: number): Combatant | null {
   if (!c || typeof c !== "object") return null;
@@ -114,6 +177,8 @@ export function normalizeCombatant(c: unknown, i: number): Combatant | null {
   if (tempHp) out.tempHp = tempHp;
   const ac = num(o.ac);
   if (ac !== null) out.ac = ac;
+  const initiative = num(o.initiative);
+  if (initiative !== null) out.initiative = Math.max(-99, Math.min(99, initiative));
   if (typeof o.stats === "string" && o.stats) out.stats = o.stats;
   if (typeof o.statsName === "string" && o.statsName) out.statsName = o.statsName;
   if (typeof o.note === "string" && o.note) out.note = o.note;
