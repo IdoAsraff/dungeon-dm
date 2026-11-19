@@ -18,7 +18,16 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SHOTS = path.join(here, "shots");
-const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+/** Chrome: $CHROME if set, else the usual install on macOS, or the first Chrome/Chromium on the PATH (Linux). */
+function findChrome() {
+  if (process.env.CHROME) return process.env.CHROME;
+  if (process.platform === "darwin") return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  const dirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+  for (const name of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]) {
+    for (const dir of dirs) if (fs.existsSync(path.join(dir, name))) return path.join(dir, name);
+  }
+  throw new Error("Chrome not found: install Google Chrome or Chromium, or set CHROME to its path.");
+}
 const BASE = process.env.E2E_URL ?? "http://localhost:1420";
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const META = 4;
@@ -52,7 +61,7 @@ export async function startHarness(opts = {}) {
   fs.mkdirSync(SHOTS, { recursive: true });
 
   const port = 9300 + Math.floor(Math.random() * 600);
-  const chrome = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${path.join(here, ".chrome-profile")}`, "--no-first-run", "about:blank"], { stdio: "ignore" });
+  const chrome = spawn(findChrome(), ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${path.join(here, ".chrome-profile")}`, "--no-first-run", "about:blank"], { stdio: "ignore" });
   let version;
   for (let i = 0; i < 50 && !version; i++) {
     try {

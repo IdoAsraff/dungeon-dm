@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
     "app:dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
-    "app:build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --bundles app",
+    "app:build": "node scripts/app-build.mjs",
     "test:rust": "cd src-tauri && PATH=\"$HOME/.cargo/bin:$PATH\" cargo test"
   },
   "dependencies": {

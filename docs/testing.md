@@ -59,6 +59,10 @@ node tools/e2e/smoke.mjs                    # PASS/FAIL lines, screenshots in to
 Port 1420 is also what `npm run app:dev` uses, so stop one before starting the other.
 Afterwards, stop Vite (`lsof -ti tcp:1420 | xargs kill`).
 
+The harness finds Chrome by itself: the usual app on macOS, and on Linux the first of
+`google-chrome`, `google-chrome-stable`, `chromium` or `chromium-browser` on the `PATH`. Set
+`CHROME` to use another browser binary; `E2E_URL` changes the Vite address.
+
 `fx/`, `shots/` and `.chrome-profile/` are gitignored.
 
 ### Write a driver
