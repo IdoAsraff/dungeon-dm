@@ -15,13 +15,18 @@ Built with Tauri 2 (Rust), React, TypeScript, Konva (map canvas), CodeMirror 6
 ## Running
 
 Requirements: Node.js and a Rust toolchain ([rustup](https://rustup.rs)). On macOS you
-also need the Xcode command line tools.
+also need the Xcode command line tools; on Linux, the WebKitGTK and other system packages
+listed in [Tauri's Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux).
 
 ```sh
 npm install
 npm run app:dev      # run in development mode (hot reload)
-npm run app:build    # build "src-tauri/target/release/bundle/macos/Dungeon DM.app"
+npm run app:build    # macOS: build "src-tauri/target/release/bundle/macos/Dungeon DM.app"
+                     # Linux: build "src-tauri/target/release/dungeon-dm" (run it directly)
 ```
+
+On Linux, `npm run app:build -- --bundles deb` makes a `.deb` installer instead (in
+`src-tauri/target/release/bundle/deb/`).
 
 Tests:
 

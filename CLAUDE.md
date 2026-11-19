@@ -18,7 +18,8 @@ opening `examples/sample-dungeon` (or their own dungeons) in the built app.
 npm test               # vitest unit tests (src/**/*.test.ts)
 npm run typecheck      # tsc
 npm run test:rust      # backend tests (cargo; needs the sandbox off)
-npm run app:build      # builds src-tauri/target/release/bundle/macos/Dungeon DM.app (sandbox off)
+npm run app:build      # release build (sandbox off): macOS → bundle/macos/Dungeon DM.app,
+                       # Linux → src-tauri/target/release/dungeon-dm (see scripts/app-build.mjs)
 node tools/e2e/fixture.mjs && node tools/e2e/smoke.mjs   # browser smoke test (see docs/testing.md)
 ```
 
@@ -69,7 +70,7 @@ Rust is installed in `~/.cargo`; the npm scripts add it to PATH themselves.
 
 - Needs `dangerouslyDisableSandbox: true`: git commands that write `.git/`, `cargo`
   (`test:rust`, `app:build`), the Vite dev server and Chrome for e2e, and
-  `scripts/build-rules-data.mjs` (uses `sips`).
+  `scripts/build-rules-data.mjs` (uses `sips`, so it only runs on macOS).
 - `npm install` needs network access to `registry.npmjs.org`.
 - `open` (launching the app) is blocked in the sandbox; ask the user to run it.
 - Vite's file watcher may miss edits made inside the sandbox: restart Vite if the page is stale.
